@@ -16,7 +16,8 @@ A shell script for concatenating samples sequenced on ILMN machines across multi
 A shell script for separating a directory that contains both single end and paired end fastq files.
 
 #### requirements
-
+ - bash
+ - fastqs must end in standard ILMN file endings: `_L001_R1_001.fastq.gz`, `_L001_R2_001.fastq.gz`, `_L002_R1_001.fastq.gz`, `_L002_R2_001.fastq.gz`
 
 #### usage
 ```bash
