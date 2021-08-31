@@ -4,6 +4,7 @@ A shell script for separating a directory that contains both single end and pair
 
 #### requirements
  - bash
+ - a single directory that contains BOTH single-end and paired-end ILMN fastq.gz files
  - fastqs must end in standard ILMN file endings: `_L001_R1_001.fastq.gz`, `_L001_R2_001.fastq.gz`, `_L002_R1_001.fastq.gz`, `_L002_R2_001.fastq.gz`
 
 #### usage
