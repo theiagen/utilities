@@ -69,7 +69,7 @@ for ID in ${ID_list}; do
   echo "number of files for ${ID}" ${num_files}
   if [[ ${num_files} -gt 2 ]]; then
     echo "There are more than two files for" $ID
-    ((num_IDs_with_multiple_files++))
+    ((num_IDs_with_more_than_two_files++))
   elif [[ ${num_files} -eq 2 ]]; then
     echo "There are two files for" $ID
     ((num_IDs_with_two_files++))
