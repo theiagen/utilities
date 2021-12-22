@@ -1,4 +1,4 @@
-#!/User/bin/python
+#!/Users/frank/opt/anaconda3/bin/python
 
 # import sys
 # import csv
@@ -33,7 +33,7 @@ zip_county_lookup_dict = dict(zip(zip_df1.ZipCode, zip_df1.County))
 # input_headers = meta_df1.columns.values
 output_headers = ['entity:cdc_specimen_id', 'collection_date', 'county','gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state']
 
-#rename headers
+# rename headers
 meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab', 'zip': 'county'}, inplace=True)
 
 # replace zipcodes with counties
@@ -45,6 +45,18 @@ for i in meta_df1.columns.values:
 	if i not in output_headers:
 		drop_list.append(i)
 meta_df1.drop(drop_list, axis='columns', inplace=True)
+
+# replace all NA values with the string 'unknown'
+meta_df1.fillna(value='unknown', inplace=True)
+
+# replace all newline characters with spaces
+meta_df1.replace("\n", value=' ', regex=True, inplace=True)
+
+# replace all forward slashes in first  with underscores
+meta_df1.replace('/', value='_', regex=True, inplace=True)
+
+# replace all commas with underscores
+meta_df1.replace(',', value='_', regex=True, inplace=True)
 
 # Get outfile name
 out_file_name = arguments.out_file
