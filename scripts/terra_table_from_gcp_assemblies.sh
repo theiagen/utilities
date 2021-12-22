@@ -32,14 +32,22 @@ output_dir=$5
 date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 
 # Capture samplenames from existing assembleis in given gcp_uri
-samplenames=$(gsutil ls ${gcp_uri}*.fasta | awk -F'/' '{ print $NF }' | awk -F'.fasta' '{ print $1 }')
+assembly_files=$(gsutil ls ${gcp_uri}*.fasta | awk -F'/' '{ print $NF }')
 
 # Create Terra table with gcp pointers
 echo -e "entity:${root_entity}_id\tconensus_fasta" > ${output_dir}/assembly_terra_table_${date_tag}.tsv
 
-for sample in $samplenames; do
-  echo -e "${sample}\t${gcp_uri}${sample}.fasta" >> ${output_dir}/assembly_terra_table_${date_tag}.tsv
+for assembly in $assembly_files; do
+  if [[ "*${assembly}*" =~ "_" ]]; then 
+    samplename=$(echo ${assembly} | awk -F'_' '{ print $1 }')
+  else
+    samplename=$(echo ${assembly} | awk -F'.fasta' '{ print $1 }')
+  fi
+  echo -e "${samplename}\t${gcp_uri}${assembly}" >> ${output_dir}/assembly_terra_table_${date_tag}.tsv
 done
+
+# remove duplicates from tsv if samplename not unique
+awk '!a[$1]++' ${output_dir}/assembly_terra_table_${date_tag}.tsv > temp.tsv && mv temp.tsv ${output_dir}/assembly_terra_table_${date_tag}.tsv
 
 # Import Terra table to sepcified terra_workspace
 docker run --rm -it -v "$HOME"/.config:/.config -v $PWD:/data broadinstitute/terra-tools:tqdm bash -c "cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${output_dir}/assembly_terra_table_${date_tag}.tsv"
