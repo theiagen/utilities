@@ -7,11 +7,18 @@ For the Terra table to properly import into the user-defined workspace, gcloud a
 
 Five positional arguments required:
 
-$ terra_table_from_gcp_assemblies.sh {gcp_uri} {terra_project} {terra_workspace} {root_entity} {output_dir}
+terra_table_from_gcp_assemblies.sh {gcp_uri} {terra_project} {terra_workspace} {root_entity} {output_dir}
 
 *NOTES on positional arguments: 
 - gcp_uri must end in foward slash, e.g. \"gs://my_gcp_bucket/\"
 - root_entity should not contain the \"entity:\" prefix nor the \"_id\" suffix
+"
+
+# If the user invokes the script with -h or any command line arguments, print some help.
+if [ "$#" == 0 ] || [ "$1" == "-h" ] ; then
+	echo "$HELP"
+  exit 0
+fi
 
 
 # User-defined inputs
