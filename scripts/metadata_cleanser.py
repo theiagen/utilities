@@ -58,6 +58,9 @@ meta_df1.replace('/', value='_', regex=True, inplace=True)
 # replace all commas with underscores
 meta_df1.replace(',', value='_', regex=True, inplace=True)
 
+# replace all 'Unknown' with 'unknown'
+meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
+
 # Get outfile name
 out_file_name = arguments.out_file
 
