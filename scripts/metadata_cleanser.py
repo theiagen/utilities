@@ -61,6 +61,9 @@ meta_df1.replace(',', value='_', regex=True, inplace=True)
 # replace all 'Unknown' with 'unknown'
 meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
 
+# replace all '_' with '-' in collection date cols
+meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
+
 # Get outfile name
 out_file_name = arguments.out_file
 
