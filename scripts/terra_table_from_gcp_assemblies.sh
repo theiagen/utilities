@@ -35,7 +35,7 @@ date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 assembly_files=$(gsutil ls ${gcp_uri}*.fasta | awk -F'/' '{ print $NF }')
 
 # Create Terra table with gcp pointers
-echo -e "entity:${root_entity}_id\tconensus_fasta" > ${output_dir}/assembly_terra_table_${date_tag}.tsv
+echo -e "entity:${root_entity}_id\tassembly_fasta" > ${output_dir}/assembly_terra_table_${date_tag}.tsv
 
 for assembly in $assembly_files; do
   if [[ "*${assembly}*" =~ "_" ]]; then 
