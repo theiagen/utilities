@@ -23,23 +23,29 @@ output_dir_loc = arguments.output_dir_input
 # use pyfaidx to read in the fasta file to create a dictionary-like object and in the event of a duplicate sequence keey only take the first entry💪💪💪
 seqs1 = pyfaidx.Fasta(fasta1, duplicate_action="first")
 
+# pull original names and sequences into lists
 original_seq_names_list = []
 seqs_list = []
 for i in seqs1.keys():
     original_seq_names_list.append(i)
     seqs_list.append(seqs1[i][:].seq)
 
+# remove slashes and create new list of names
 no_slashes_seq_names_list = []
 for i in original_seq_names_list:
     j = i.replace('/','_')
     no_slashes_seq_names_list.append(j)
 
+# zip sequences and new slashless names into dicitonary
 seqs_dict = dict(zip(no_slashes_seq_names_list, seqs_list))
 
+# create variable with timestamp
 timestr = time.strftime("%Y%m%d-%H%M%S")
 
+# make the output directory using the directory path input
 os.mkdir('./{}/individual_gisaid_assemblies_{}/'.format(output_dir_loc,timestr))
 
+# redirect the stdout to file, print to file, reset stdout
 for i in seqs_dict:
     with open('./{}/individual_gisaid_assemblies_{}/{}.fasta'.format(output_dir_loc,timestr,i), 'w') as f:
         original_stdout = sys.stdout
