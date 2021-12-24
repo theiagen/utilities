@@ -1,4 +1,4 @@
-#!/Users/frank/opt/anaconda3/bin/python
+#!/usr/bin/env python3
 
 
 import argparse
@@ -40,14 +40,14 @@ for i in original_seq_names_list:
 seqs_dict = dict(zip(no_slashes_seq_names_list, seqs_list))
 
 # create variable with timestamp
-timestr = time.strftime("%Y%m%d-%H%M%S")
+timestr = time.strftime("%Y-%m-%d")
 
 # make the output directory using the directory path input
-os.mkdir('./{}/individual_gisaid_assemblies_{}/'.format(output_dir_loc,timestr))
+os.makedirs('{}/individual_gisaid_assemblies_{}/'.format(output_dir_loc,timestr), exist_ok=True)
 
 # redirect the stdout to file, print to file, reset stdout
 for i in seqs_dict:
-    with open('./{}/individual_gisaid_assemblies_{}/{}.fasta'.format(output_dir_loc,timestr,i), 'w') as f:
+    with open('{}/individual_gisaid_assemblies_{}/{}.fasta'.format(output_dir_loc,timestr,i), 'w') as f:
         original_stdout = sys.stdout
         sys.stdout = f
         j = seqs_dict[i]
