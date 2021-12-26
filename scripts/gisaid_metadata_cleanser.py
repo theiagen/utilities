@@ -23,8 +23,10 @@ meta_df1 = pd.read_csv(meta_csv1)
 # input_headers = meta_df1.columns.values
 output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus']
 
+	country	division	location	region_exposure	country_exposure	division_exposure	segment	length	host	age	sex	Nextstrain_clade	pangolin_lineage	GISAID_clade	originating_lab	submitting_lab	authors	url	title	paper_url	date_submitted	purpose_of_sequencing
+
 # rename headers
-meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab', 'zip': 'county'}, inplace=True)
+meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'pangolin_lineage': 'pango_lineage', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade'}, inplace=True)
 
 # drop extraneous cols
 drop_list = []
