@@ -1,4 +1,4 @@
-#!/Users/frank/opt/anaconda3/bin/python
+#!/usr/bin/env python3
 
 # import sys
 # import csv
@@ -58,22 +58,29 @@ meta_df1['age'].replace(' years', value='', regex=True, inplace=True)
 
 
 # age column cleaning
-# replace string
+# replace string inputs of age ranges with individual numerical age equivalent to the bottom of the bins
 age_range_replace_dict = {'0-4': 4, '5-17': 5, '18-49': 18, '50-64': 50}
 meta_df1['age'].replace(age_range_replace_dict, inplace=True)
 
+# replace all NA values with numerical value 151
 meta_df1['age'] =pd.to_numeric(meta_df1['age'], errors ='coerce').fillna(151).astype('int')
 
+# set bin boundaries
 bins1 = [0, 4, 17, 49, 64, 150, 1000000]
-labels1 = ['0-4', '5-17', '18-49', '50-64', '65 and up', 'unknown']
 
+# give bins labels
+labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
+
+# perform binning
 meta_df1['age_bins'] = pd.cut(x=meta_df1['age'], bins=bins1, labels=labels1, include_lowest=True)
 
+# replace all values >151 with unknown
 meta_df1['age'].replace(151, 'unknown', inplace=True)
 
+# replace all NA values with unknown
 meta_df1['age_bins'] = meta_df1['age_bins'].fillna('unknown')
 
-# remove dupes
+# remove duplicate lines, keeping the first values
 meta_df1.drop_duplicates(keep='first', inplace=True)
 
 # Get outfile name
