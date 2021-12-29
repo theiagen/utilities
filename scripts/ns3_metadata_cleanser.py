@@ -4,7 +4,6 @@
 # import csv
 import argparse
 import pandas as pd
-import re
 #argpase used to take in command line arguments
 # three positional arguments, argparse might be overkill, sys command included
 def get_opts():
@@ -27,6 +26,7 @@ meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': str})
 zip_csv1 = arguments.county_zipcodes_file
 zip_df1 = pd.read_csv(zip_csv1, dtype={'ZipCode': str})
 
+# split zipcodes on '-' delimiter
 meta_df1[['zip1','zip2']] = meta_df1['zip'].str.split('-',expand=True)
 
 

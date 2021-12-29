@@ -66,7 +66,7 @@ meta_df1['age'].replace(age_range_replace_dict, inplace=True)
 meta_df1['age'] =pd.to_numeric(meta_df1['age'], errors ='coerce').fillna(151).astype('int')
 
 # set bin boundaries
-bins1 = [0, 4, 17, 49, 64, 150, 1000000]
+bins1 = [0, 4, 17, 49, 64, 123, 1000000]
 
 # give bins labels
 labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
