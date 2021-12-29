@@ -21,29 +21,19 @@ arguments = get_opts()
 
 # read in metadata csv file
 meta_csv1 = arguments.csv_meta_file
-meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': int}, error_bad_lines=False, index_col=False)
+meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': str}, error_bad_lines=False, index_col=False)
 
-# set all zipcode types to int
-# replace all 'Unknown' entries with 0
-meta_df1['zip'].replace('Unknown', value=0, regex=True, inplace=True)
-# split all entries with '-' and seperate into two new cols
-meta_df1[['zip1','zip2']] = meta_df1.zip.str.split('-', expand=True)
-# replace all NA values with 0
-meta_df1['zip1'].fillna(value=0, inplace=True)
-meta_df1.astype({'zip1': 'int'}).dtypes
-
-# read in zipcode county lookup table
 zip_csv1 = arguments.county_zipcodes_file
-zip_df1 = pd.read_csv(zip_csv1, dtype={'ZipCode': int})
+zip_df1 = pd.read_csv(zip_csv1, dtype={'ZipCode': str})
 
 # make a dictionary for fast zip/county lookups
 zip_county_lookup_dict = dict(zip(zip_df1.ZipCode, zip_df1.County))
 
 # add new column 'county' mapped from zip1
-meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
+meta_df1['county'] = meta_df1['zip'].map(zip_county_lookup_dict)
 
 # input_headers = meta_df1.columns.values
-output_headers = ['entity:cdc_specimen_id', 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip', 'zip1', 'zip2']
+output_headers = ['entity:cdc_specimen_id', 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
 
 # rename headers
 meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
