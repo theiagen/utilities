@@ -51,12 +51,12 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
     
     # if the created file is a gisaid_auspice input file, integrate into Terra and BQ
     if [[ "$file" == "gisaid_auspice_input"*"tar" ]]; then 
-      echo "New gisaid file identified: $file"
+      echo "New gisaid file identified: $file" >> ${output_dir}/automation_logs/inotifywait.log
       date_tag=$(date +"%Y-%m-%d")
       gisaid_dir="${output_dir}/gisaid_files/${date_tag}/"
       file="${monitorring_dir}/${file}"
       
-      SCTIPS="
+      SCRIPTS="
       # decompress tar ball 
       \n
       mkdir ${gisaid_dir}
