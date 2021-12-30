@@ -42,7 +42,7 @@ meta_df1.replace("\n", value=' ', regex=True, inplace=True)
 # replace all forward slashes in first  with underscores
 meta_df1['entity:gisaid_louisiana_data_id'].replace('/', value='_', regex=True, inplace=True)
 
-# replace all commas with underscores
+# replace all commas with spaces
 meta_df1.replace(',', value=' ', regex=True, inplace=True)
 
 # replace all 'Unknown' with 'unknown'
