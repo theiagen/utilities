@@ -1,6 +1,11 @@
 #!/bin/bash
 
 
+# Set variables
+dashboarding_gcp_uri="gs://la-state-dashboarding/"
+dashboarding_newline_json="gisaid_louisiana_data.json"
+dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json"
+
 # Set user-defined parameters
 monitorring_dir=''
 outout_dir=''
@@ -71,11 +76,11 @@ inotifywait -m ${monitorring_dir} -e create | while read dir action file; do
        tsv_to_newline_json.py ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.json
         
        # Push to GCP bucket
-       gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json gs://la-state-dashboarding/gisaid_louisiana_data.json
-       gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json gs://la-state-dashboarding/backup/
+       gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json ${dashboarding_gcp_uri}${dashboarding_newline_json}
+       gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json ${dashboarding_gcp_uri}backup/
         
        # Load newline-json to BQ
-       bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens gs://la-state-dashboarding/gisaid_louisiana_data.json ~/la_state_dashboarding/schema_LA_v1.json 
+       bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}${dashboarding_newline_json} ${dashboarding_schema}
        " >> ${output_dir}/automation_logs/automation_executables.txt
     fi
 
