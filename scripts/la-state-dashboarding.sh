@@ -43,17 +43,17 @@ echo "monitorring_dir: ${monitorring_dir}, output_dir: ${output_dir}, gcp_uri: $
 # Create output sub directories
 mkdir -p ${output_dir}/{automation_logs,gisaid_files}
 date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
-echo "LA State Dashboarding Automated System initiated at ${date_tag}" | tee ~{output_dir}/automation_logs/inotifywait.log
+echo "LA State Dashboarding Automated System initiated at ${date_tag}" | tee ${output_dir}/automation_logs/inotifywait.log
 
 # Start monitorring specified directory for the creation of new assembly_files
 inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action file; do
-    echo "The file '$file' appeared in directory '$dir' via '$action'" >> ~{output_dir}/automation_logs/inotifywait.log
+    echo "The file '$file' appeared in directory '$dir' via '$action'" >> ${output_dir}/automation_logs/inotifywait.log
     
     # if the created file is a gisaid_auspice input file, integrate into Terra and BQ
     if [[ "$file" == "gisaid_auspice_input"*"tar" ]]; then 
       echo "New gisaid file identified: $file"
       date_tag=$(date +"%Y-%m-%d")
-      gisaid_dir="~{output_dir}/gisaid_files/${date_tag}/"
+      gisaid_dir="${output_dir}/gisaid_files/${date_tag}/"
       file="${monitorring_dir}/${file}"
       
       SCTIPS="
@@ -61,7 +61,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       mkdir ${gisaid_dir}
       \n
-      tar -xf $file -C ~{output_dir}/gisaid_files/${date_tag}/
+      tar -xf $file -C ${output_dir}/gisaid_files/${date_tag}/
       \n
       \n
       # Create individual fasta files from GISAID multifasta
