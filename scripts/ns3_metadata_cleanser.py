@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/frank/opt/anaconda3/bin/python
 
 # import sys
 # import csv
@@ -21,7 +21,7 @@ arguments = get_opts()
 
 # read in metadata csv file AND CONVERT ALL ZIPCODES TO STRINGS
 meta_csv1 = arguments.csv_meta_file
-meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': str})
+meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': str, 'vendor_accession': str})
 
 # read in ZIPCODE csv file AND CONVERT ALL ZIPCODES TO STRINGS
 zip_csv1 = arguments.county_zipcodes_file
@@ -68,6 +68,14 @@ meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
 # replace all '_' with '-' in collection date cols
 meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
 
+# split sample name on underscore and take first piece as new sample name
+meta_df1[['sample_name_part1','sample_name_part2']] = meta_df1['entity:cdc_specimen_id'].str.split('_L',expand=True)
+meta_df1['entity:cdc_specimen_id'] = meta_df1['sample_name_part1']
+drop_list2 = ['sample_name_part1','sample_name_part2']
+meta_df1.drop(drop_list2, axis='columns', inplace=True)
+
+
+
 # Get outfile name
 out_file_name = arguments.out_file
 
@@ -76,3 +84,4 @@ meta_file_out = meta_df1.to_csv(out_file_name, sep="\t", index=False)
 
 # print to stdout
 print(meta_df1)
+print(meta_df1['entity:cdc_specimen_id'])
