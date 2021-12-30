@@ -38,10 +38,10 @@ zip_county_lookup_dict = dict(zip(zip_df1.ZipCode, zip_df1.County))
 meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
 
 # list of headers to be included in the final output file
-output_headers = ['entity:cdc_specimen_id', 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
+output_headers = ['entity:cdc_specimen_id_02', 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
 
 # rename headers
-meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
+meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id_02', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
 
 # drop extraneous cols
 drop_list = []
@@ -69,8 +69,8 @@ meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
 meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
 
 # split sample name on underscore and take first piece as new sample name
-meta_df1[['sample_name_part1','sample_name_part2']] = meta_df1['entity:cdc_specimen_id'].str.split('_L',expand=True)
-meta_df1['entity:cdc_specimen_id'] = meta_df1['sample_name_part1']
+meta_df1[['sample_name_part1','sample_name_part2']] = meta_df1['entity:cdc_specimen_id_02'].str.split('_L',expand=True)
+meta_df1['entity:cdc_specimen_id_02'] = meta_df1['sample_name_part1']
 drop_list2 = ['sample_name_part1','sample_name_part2']
 meta_df1.drop(drop_list2, axis='columns', inplace=True)
 
@@ -84,4 +84,3 @@ meta_file_out = meta_df1.to_csv(out_file_name, sep="\t", index=False)
 
 # print to stdout
 print(meta_df1)
-print(meta_df1['entity:cdc_specimen_id'])
