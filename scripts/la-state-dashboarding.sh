@@ -37,11 +37,13 @@ if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project 
   exit 0
 fi
 
-echo "did not exit"
 echo "monitorring_dir: ${monitorring_dir}, output_dir: ${output_dir}, gcp_uri: ${gcp_uri}, terra_project: ${terra_project}, terra_workspace: ${terra_workspace}, bq_load_schema: ${bq_load_schema}"
 
 # Create output sub directories
 mkdir -p ${output_dir}/{automation_logs,gisaid_files}
+date_tag=$(date +"%Y-%m-%d")
+echo "automation log dir: ~{output_dir}/automation_logs"
+echo "LA State Dashboarding Automated System initiated at ${date_tag}" | tee ~{output_dir}/automation_logs/inotifywait.log
 
 # Start monitorring specified directory for the creation of new assembly_files
 inotifywait -m ${monitorring_dir} -e create | while read dir action file; do
