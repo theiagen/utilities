@@ -81,7 +81,7 @@ meta_df1['age'].replace(151, 'unknown', inplace=True)
 meta_df1['age_bins'] = meta_df1['age_bins'].fillna('unknown')
 
 # remove duplicate lines, keeping the first values
-meta_df1.drop_duplicates(keep='first', inplace=True)
+meta_df1.drop_duplicates(subset='entity:gisaid_louisiana_data_id', keep='first', inplace=True)
 
 # Get outfile name
 out_file_name = arguments.out_file
