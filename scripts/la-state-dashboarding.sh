@@ -103,7 +103,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       # Load newline-json to BQ
       \n
-      bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_metadata_${date_tag}.json ${dashboarding_schema}
+      bq load --ignore_unknown_values=true --replace=false --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_metadata_${date_tag}.json ${dashboarding_schema}
       " 
       echo -e $SCRIPTS >> ${output_dir}/automation_logs/automation_executables.txt
     fi
