@@ -91,7 +91,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       # Convert local tsv to newline json
       \n
-      tsv_to_newline_json.py ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.json
+      tsv_to_newline_json.py ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}
       \n
       \n 
       # Push to GCP bucket
