@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Set variables
 dashboarding_gcp_uri="gs://la-state-dashboarding/"
@@ -70,12 +71,12 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       # Import of formatted data table into Terra 
       \n
-      docker run --rm -it -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/gisaid_metadata_${date_tag}.tsv\"
+      docker run --rm -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/gisaid_metadata_${date_tag}.tsv\"
       \n
       \n
       # Capture full terra data table as tsv 
       \n
-      docker run --rm -it -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/export_large_tsv/export_large_tsv.py --project cdc-terra-la-phl --workspace CDC-COVID-LA-Dashboard --entity_type gisaid_louisiana_data --tsv_filename full_louisiana_terra_table_${date}.tsv\"
+      docker run --rm -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/export_large_tsv/export_large_tsv.py --project cdc-terra-la-phl --workspace CDC-COVID-LA-Dashboard --entity_type gisaid_louisiana_data --tsv_filename full_louisiana_terra_table_${date}.tsv\"
       \n
       # Convert local tsv to newline json
       \n
