@@ -1,38 +1,21 @@
 #!/bin/bash
 
-
 # Set variables
 dashboarding_gcp_uri="gs://la-state-dashboarding/"
 dashboarding_newline_json="gisaid_louisiana_data.json"
 dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json"
 terra_table_root_entity="gisaid_louisiana_data"
-
-# Set user-defined parameters
-monitorring_dir=''
-outout_dir=''
-gcp_uri=''
-terra_project=''
-terra_workspace=''
-bq_load_schema=''
+monitorring_dir='/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection'
+outout_dir='/home/kevin_libuit/la_state_dashboarding/'
+gcp_uri='gs://fc-dc36d985-ee37-436c-8cc8-8314067696b2/uploads/GISAID/'
+terra_project='cdc-terra-la-phl'
+terra_workspace='CDC-COVID-LA-Dashboard'
+bq_load_schema='/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json'
 
 HELP="
   Usage: ...
 "
  
-while getopts ':m:o:g:p:w:s:' flag; do
-  case "${flag}" in
-    m) monitorring_dir="${OPTARG}" ;;
-    o) output_dir="${OPTARG}" ;;
-    g) gcp_uri="${OPTARG}" ;;
-    p) terra_project="${OPTARG}" ;;
-    w) terra_workspace="${OPTARG}" ;;
-    s) bq_load_schema="${OPTARG}" ;;
-    :) echo "Missing option argument for -$OPTARG" ;;
-    ?) echo "${HELP}" 
-       exit 0;;
-  esac
-done
-
 if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project || -z $terra_workspace || -z $bq_load_schema ]]; then 
   echo "One or more required inputs not defined. $HELP"
   exit 0
@@ -89,21 +72,24 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       docker run --rm -it -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/gisaid_metadata_${date_tag}.tsv\"
       \n
       \n
+      # Capture full terra data table as tsv 
+      \n
+      docker run --rm -it -v "$HOME"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c "cd data; python3 /scripts/export_large_tsv/export_large_tsv.py --project cdc-terra-la-phl --workspace CDC-COVID-LA-Dashboard --entity_type gisaid_louisiana_data --tsv_filename full_louisiana_terra_table_${date}.tsv"
       # Convert local tsv to newline json
       \n
-      tsv_to_newline_json.py ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}
+      tsv_to_newline_json.py ${gisaid_dir}/full_louisiana_terra_table_${date}.tsv ${gisaid_dir}/gisaid_louisiana_data_${date_tag}
       \n
       \n 
       # Push to GCP bucket
       \n
-      gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json ${dashboarding_gcp_uri}
+      gsutil cp  ${gisaid_dir}/gisaid_louisiana_data_${date_tag}.json ${dashboarding_gcp_uri}gisaid_louisiana_data.json
       \n
       gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json ${dashboarding_gcp_uri}backup/
       \n  
       \n
       # Load newline-json to BQ
       \n
-      bq load --ignore_unknown_values=true --replace=false --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_metadata_${date_tag}.json ${dashboarding_schema}
+      bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_louisiana_data.json ${dashboarding_schema}
       " 
       echo -e $SCRIPTS >> ${output_dir}/automation_logs/automation_executables.txt
     fi
