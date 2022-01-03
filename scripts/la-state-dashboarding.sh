@@ -92,8 +92,13 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       # Load newline-json to BQ
       \n
       bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_louisiana_data.json ${dashboarding_schema}
+      \n
       " 
+      echo -e "Capturing GISAID data into Dashboard (${date_tag})\n" ${output_dir}/automation_logs/automation_executables.txt
       echo -e $SCRIPTS >> ${output_dir}/automation_logs/automation_executables.txt
+      
+      echo -e $SCRIPTS | bash
+      
     fi
 
 done
