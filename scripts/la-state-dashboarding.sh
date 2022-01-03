@@ -86,7 +86,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       gsutil cp  ${gisaid_dir}/gisaid_louisiana_data_${date_tag}.json ${dashboarding_gcp_uri}gisaid_louisiana_data.json
       \n
-      gsutil cp  ${gisaid_dir}/gisaid_metadata_${date_tag}.json ${dashboarding_gcp_uri}backup/
+      gsutil cp  ${gisaid_dir}/gisaid_louisiana_data_${date_tag}.json ${dashboarding_gcp_uri}backup/
       \n  
       \n
       # Load newline-json to BQ
