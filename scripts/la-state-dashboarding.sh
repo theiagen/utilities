@@ -5,14 +5,15 @@ dashboarding_gcp_uri="gs://la-state-dashboarding/"
 dashboarding_newline_json="gisaid_louisiana_data.json"
 dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json"
 terra_table_root_entity="gisaid_louisiana_data"
-monitorring_dir='/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection'
-outout_dir='/home/kevin_libuit/la_state_dashboarding/'
-gcp_uri='gs://fc-dc36d985-ee37-436c-8cc8-8314067696b2/uploads/GISAID/'
-terra_project='cdc-terra-la-phl'
-terra_workspace='CDC-COVID-LA-Dashboard'
-bq_load_schema='/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json'
+monitorring_dir="/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection"
+output_dir="/home/kevin_libuit/la_state_dashboarding/"
+gcp_uri="gs://fc-dc36d985-ee37-436c-8cc8-8314067696b2/uploads/GISAID/"
+terra_project="cdc-terra-la-phl"
+terra_workspace="CDC-COVID-LA-Dashboard"
+bq_load_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json"
 
 HELP="
+
   Usage: ...
 "
  
