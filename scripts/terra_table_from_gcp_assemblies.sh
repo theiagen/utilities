@@ -56,4 +56,4 @@ done
 awk '!a[$1]++' ${output_dir}/assembly_terra_table_${date_tag}.tsv > temp.tsv && mv temp.tsv ${output_dir}/assembly_terra_table_${date_tag}.tsv
 
 # Import Terra table to sepcified terra_workspace
-docker run --rm -it -v "$HOME"/.config:/.config -v ${output_dir}:/data broadinstitute/terra-tools:tqdm bash -c "cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/assembly_terra_table_${date_tag}.tsv"
+docker run --rm -v "$HOME"/.config:/.config -v ${output_dir}:/data broadinstitute/terra-tools:tqdm bash -c "cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/assembly_terra_table_${date_tag}.tsv"
