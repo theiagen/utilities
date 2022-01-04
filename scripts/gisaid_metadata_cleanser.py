@@ -18,7 +18,7 @@ arguments = get_opts()
 
 # read in metadata csv file
 meta_csv1 = arguments.csv_meta_file
-meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str})
+meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str, 'age': str})
 
 # input_headers = meta_df1.columns.values
 output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade']
