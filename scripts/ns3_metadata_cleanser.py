@@ -1,4 +1,4 @@
-#!/Users/frank/anaconda3/bin/python3
+#!/usr/bin/env python3
 
 # import sys
 # import csv
@@ -8,9 +8,11 @@ import re
 #argpase used to take in command line arguments
 # three positional arguments, argparse might be overkill, sys command included
 def get_opts():
-	p = argparse.ArgumentParser(description = 'This program reads in a csv of sequence metadata and performs some reformatting and data sanitization then spits out a tsv to be uploaded to terra.bio', usage='[-h] metadata_cleanser.py <metadata_file.csv> <ZipCode_County_Lookup_Table> <outfile_name>')
+	p = argparse.ArgumentParser(description = 'This program reads in a csv of sequence metadata and performs some reformatting and data sanitization then spits out a tsv to be uploaded to terra.bio', usage='[-h] metadata_cleanser.py <metadata_file.csv> <target_terra_data_table_name> <ZipCode_County_Lookup_Table> <outfile_name>')
 	p.add_argument('csv_meta_file',
 				help='csv metadata file input')
+	p.add_argument('root_entity',
+				help='name of the Terra data table to which the metadata will be added (no _id required)')
 	p.add_argument('county_zipcodes_file',
 				help='csv file containing columns mapping zipcodes to county')
 	p.add_argument('out_file',
@@ -37,8 +39,12 @@ zip_county_lookup_dict = dict(zip(zip_df1.ZipCode, zip_df1.County))
 # add new column 'county' mapped from zip
 meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
 
+
+# read in the root entity for the terra data table
+root_entity_name1 = arguments.root_entity
+
 # list of headers to be included in the final output file
-output_headers = ['entity:cdc_specimen_id', 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
+output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
 
 # rename headers
 meta_df1.rename(columns={'vendor_accession': 'entity:cdc_specimen_id', 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
