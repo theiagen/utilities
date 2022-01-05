@@ -1,0 +1,735 @@
+ZipCode,County
+70001,Jefferson
+70002,Jefferson
+70003,Jefferson
+70004,Jefferson
+70005,Jefferson
+70006,Jefferson
+70009,Jefferson
+70010,Jefferson
+70011,Jefferson
+70030,St. Charles
+70031,St. Charles
+70032,St. Bernard
+70033,Jefferson
+70036,Jefferson
+70037,Plaquemines
+70038,Plaquemines
+70039,St. Charles
+70040,Plaquemines
+70041,Plaquemines
+70042,Plaquemines
+70043,St. Bernard
+70044,St. Bernard
+70046,Plaquemines
+70047,St. Charles
+70049,St. John the Baptist
+70050,Plaquemines
+70051,St. John the Baptist
+70052,St. James
+70053,Jefferson
+70054,Jefferson
+70055,Jefferson
+70056,Jefferson
+70057,St. Charles
+70058,Jefferson
+70059,Jefferson
+70060,Jefferson
+70062,Jefferson
+70063,Jefferson
+70064,Jefferson
+70065,Jefferson
+70066,St. Charles
+70067,Jefferson
+70068,St. John the Baptist
+70069,St. John the Baptist
+70070,St. Charles
+70071,St. James
+70072,Jefferson
+70073,Jefferson
+70075,St. Bernard
+70076,St. John the Baptist
+70078,St. Charles
+70079,St. Charles
+70080,St. Charles
+70081,Plaquemines
+70082,Plaquemines
+70083,Plaquemines
+70084,St. John the Baptist
+70085,St. Bernard
+70086,St. James
+70087,St. Charles
+70090,St. James
+70091,Plaquemines
+70092,St. Bernard
+70093,Plaquemines
+70094,Jefferson
+70096,Jefferson
+70097,Jefferson
+70112,Orleans
+70113,Orleans
+70114,Orleans
+70115,Orleans
+70116,Orleans
+70117,Orleans
+70118,Orleans
+70119,Orleans
+70121,Jefferson
+70122,Orleans
+70123,Jefferson
+70124,Orleans
+70125,Orleans
+70126,Orleans
+70127,Orleans
+70128,Orleans
+70129,Orleans
+70130,Orleans
+70131,Orleans
+70139,Orleans
+70140,Orleans
+70141,Orleans
+70142,Orleans
+70143,Orleans
+70145,Orleans
+70146,Orleans
+70148,Orleans
+70149,Orleans
+70150,Orleans
+70151,Orleans
+70152,Orleans
+70153,Orleans
+70154,Orleans
+70156,Orleans
+70157,Orleans
+70158,Orleans
+70159,Orleans
+70160,Orleans
+70161,Orleans
+70162,Orleans
+70163,Orleans
+70164,Orleans
+70165,Orleans
+70166,Orleans
+70167,Orleans
+70170,Orleans
+70172,Orleans
+70174,Orleans
+70175,Orleans
+70176,Orleans
+70177,Orleans
+70178,Orleans
+70179,Orleans
+70181,Orleans
+70182,Orleans
+70183,Orleans
+70184,Orleans
+70185,Orleans
+70186,Orleans
+70187,Orleans
+70189,Orleans
+70190,Orleans
+70195,Orleans
+70301,Lafourche
+70302,Lafourche
+70310,Lafourche
+70339,Assumption
+70340,St. Mary
+70341,Assumption
+70342,St. Mary
+70343,Terrebonne
+70344,Terrebonne
+70345,Lafourche
+70346,Ascension
+70352,Terrebonne
+70353,Terrebonne
+70354,Lafourche
+70355,Lafourche
+70356,Terrebonne
+70357,Lafourche
+70358,Jefferson
+70359,Terrebonne
+70360,Terrebonne
+70361,Terrebonne
+70363,Terrebonne
+70364,Terrebonne
+70371,Lafourche
+70372,Assumption
+70373,Lafourche
+70374,Lafourche
+70375,Lafourche
+70376,Ascension
+70377,Terrebonne
+70380,St. Mary
+70381,St. Mary
+70390,Assumption
+70391,Assumption
+70392,St. Mary
+70393,Assumption
+70394,Lafourche
+70395,Terrebonne
+70397,Terrebonne
+70401,Tangipahoa
+70402,Tangipahoa
+70403,Tangipahoa
+70404,Tangipahoa
+70420,St. Tammany
+70421,Tangipahoa
+70422,Tangipahoa
+70426,Washington
+70427,Washington
+70429,Washington
+70431,St. Tammany
+70433,St. Tammany
+70434,St. Tammany
+70435,St. Tammany
+70436,Tangipahoa
+70437,St. Tammany
+70438,Washington
+70441,St. Helena
+70442,Tangipahoa
+70443,Tangipahoa
+70444,Tangipahoa
+70445,St. Tammany
+70446,Tangipahoa
+70447,St. Tammany
+70448,St. Tammany
+70449,Livingston
+70450,Washington
+70451,Tangipahoa
+70452,St. Tammany
+70453,St. Helena
+70454,Tangipahoa
+70455,Tangipahoa
+70456,Tangipahoa
+70457,St. Tammany
+70458,St. Tammany
+70459,St. Tammany
+70460,St. Tammany
+70461,St. Tammany
+70462,Livingston
+70463,St. Tammany
+70464,St. Tammany
+70465,Tangipahoa
+70466,Tangipahoa
+70467,Washington
+70469,St. Tammany
+70470,St. Tammany
+70471,St. Tammany
+70501,Lafayette
+70502,Lafayette
+70503,Lafayette
+70504,Lafayette
+70505,Lafayette
+70506,Lafayette
+70507,Lafayette
+70508,Lafayette
+70509,Lafayette
+70510,Vermilion
+70511,Vermilion
+70512,St. Martin
+70513,Iberia
+70514,St. Mary
+70515,Evangeline
+70516,Acadia
+70517,St. Martin
+70518,Lafayette
+70519,St. Martin
+70520,Lafayette
+70521,St. Martin
+70522,St. Mary
+70523,St. Mary
+70524,Evangeline
+70525,Acadia
+70526,Acadia
+70527,Acadia
+70528,Vermilion
+70529,Lafayette
+70531,Acadia
+70532,Jefferson Davis
+70533,Vermilion
+70534,Acadia
+70535,St. Landry
+70537,Acadia
+70538,St. Mary
+70540,St. Mary
+70541,St. Landry
+70542,Vermilion
+70543,Acadia
+70544,Iberia
+70546,Jefferson Davis
+70548,Vermilion
+70549,Jefferson Davis
+70550,St. Landry
+70551,St. Landry
+70552,Iberia
+70554,Evangeline
+70555,Vermilion
+70556,Acadia
+70558,Lafayette
+70559,Acadia
+70560,Iberia
+70562,Iberia
+70563,Iberia
+70569,Iberia
+70570,St. Landry
+70571,St. Landry
+70575,Vermilion
+70576,Evangeline
+70577,St. Landry
+70578,Acadia
+70580,Evangeline
+70581,Jefferson Davis
+70582,St. Martin
+70583,Lafayette
+70584,St. Landry
+70585,Evangeline
+70586,Evangeline
+70589,St. Landry
+70591,Jefferson Davis
+70592,Lafayette
+70593,Lafayette
+70595,Lafayette
+70596,Lafayette
+70598,Lafayette
+70601,Calcasieu
+70602,Calcasieu
+70605,Calcasieu
+70606,Calcasieu
+70607,Calcasieu
+70609,Calcasieu
+70611,Calcasieu
+70612,Calcasieu
+70615,Calcasieu
+70616,Calcasieu
+70629,Calcasieu
+70630,Calcasieu
+70631,Cameron
+70632,Cameron
+70633,Calcasieu
+70634,Beauregard
+70637,Beauregard
+70638,Allen
+70639,Vernon
+70640,Jefferson Davis
+70642,Vernon
+70643,Cameron
+70644,Allen
+70645,Cameron
+70646,Calcasieu
+70647,Calcasieu
+70648,Allen
+70650,Jefferson Davis
+70651,Allen
+70652,Beauregard
+70653,Beauregard
+70654,Allen
+70655,Allen
+70656,Vernon
+70657,Beauregard
+70658,Allen
+70659,Vernon
+70660,Beauregard
+70661,Calcasieu
+70662,Beauregard
+70663,Calcasieu
+70665,Calcasieu
+70668,Calcasieu
+70669,Calcasieu
+70706,Livingston
+70707,Ascension
+70710,West Baton Rouge
+70711,Livingston
+70712,West Feliciana
+70714,East Baton Rouge
+70715,Pointe Coupee
+70716,Iberville
+70717,Pointe Coupee
+70718,Ascension
+70719,West Baton Rouge
+70720,West Baton Rouge
+70721,Iberville
+70722,East Feliciana
+70725,Ascension
+70726,Livingston
+70727,Livingston
+70729,West Baton Rouge
+70733,Livingston
+70734,Ascension
+70736,Pointe Coupee
+70737,Ascension
+70738,Ascension
+70739,East Baton Rouge
+70740,Iberville
+70743,St. James
+70744,Livingston
+70747,Pointe Coupee
+70748,East Feliciana
+70749,Pointe Coupee
+70750,St. Landry
+70751,Pointe Coupee
+70752,Pointe Coupee
+70753,Pointe Coupee
+70754,Livingston
+70755,Pointe Coupee
+70756,Pointe Coupee
+70757,Iberville
+70759,Pointe Coupee
+70760,Pointe Coupee
+70761,East Feliciana
+70762,Pointe Coupee
+70763,St. James
+70764,Iberville
+70765,Iberville
+70767,West Baton Rouge
+70769,Ascension
+70770,East Baton Rouge
+70772,Iberville
+70773,Pointe Coupee
+70774,Ascension
+70775,West Feliciana
+70776,Iberville
+70777,East Feliciana
+70778,Ascension
+70780,Iberville
+70781,Pointe Coupee
+70782,West Feliciana
+70783,Pointe Coupee
+70784,West Feliciana
+70785,Livingston
+70786,Livingston
+70787,West Feliciana
+70788,Iberville
+70789,East Feliciana
+70791,East Baton Rouge
+70792,St. James
+70801,East Baton Rouge
+70802,East Baton Rouge
+70803,East Baton Rouge
+70804,East Baton Rouge
+70805,East Baton Rouge
+70806,East Baton Rouge
+70807,East Baton Rouge
+70808,East Baton Rouge
+70809,East Baton Rouge
+70810,East Baton Rouge
+70811,East Baton Rouge
+70812,East Baton Rouge
+70813,East Baton Rouge
+70814,East Baton Rouge
+70815,East Baton Rouge
+70816,East Baton Rouge
+70817,East Baton Rouge
+70818,East Baton Rouge
+70819,East Baton Rouge
+70820,East Baton Rouge
+70821,East Baton Rouge
+70822,East Baton Rouge
+70823,East Baton Rouge
+70825,East Baton Rouge
+70826,East Baton Rouge
+70827,East Baton Rouge
+70831,East Baton Rouge
+70833,East Baton Rouge
+70835,East Baton Rouge
+70836,East Baton Rouge
+70837,East Baton Rouge
+70873,East Baton Rouge
+70874,East Baton Rouge
+70879,East Baton Rouge
+70883,East Baton Rouge
+70884,East Baton Rouge
+70892,East Baton Rouge
+70893,East Baton Rouge
+70894,East Baton Rouge
+70895,East Baton Rouge
+70896,East Baton Rouge
+70898,East Baton Rouge
+71001,Bienville
+71002,Natchitoches
+71003,Claiborne
+71004,Caddo
+71006,Bossier
+71007,Caddo
+71008,Bienville
+71009,Caddo
+71016,Bienville
+71018,Webster
+71019,Red River
+71021,Webster
+71023,Webster
+71024,Webster
+71025,Red River
+71027,De Soto
+71028,Bienville
+71029,Caddo
+71030,De Soto
+71031,Natchitoches
+71032,De Soto
+71033,Caddo
+71034,Red River
+71036,Red River
+71037,Bossier
+71038,Claiborne
+71039,Webster
+71040,Claiborne
+71043,Caddo
+71044,Caddo
+71045,Bienville
+71046,De Soto
+71047,Caddo
+71048,Claiborne
+71049,De Soto
+71050,De Soto
+71051,Bossier
+71052,De Soto
+71055,Webster
+71058,Webster
+71060,Caddo
+71061,Caddo
+71063,De Soto
+71064,Bossier
+71065,Sabine
+71066,Natchitoches
+71067,Bossier
+71068,Bienville
+71069,Caddo
+71070,Natchitoches
+71071,Webster
+71072,Webster
+71073,Webster
+71075,Webster
+71077,Lincoln
+71078,De Soto
+71079,Claiborne
+71080,Bienville
+71082,Caddo
+71101,Caddo
+71102,Caddo
+71103,Caddo
+71104,Caddo
+71105,Caddo
+71106,Caddo
+71107,Caddo
+71108,Caddo
+71109,Caddo
+71110,Bossier
+71111,Bossier
+71112,Bossier
+71113,Bossier
+71115,Caddo
+71118,Caddo
+71119,Caddo
+71120,Caddo
+71129,Caddo
+71130,Caddo
+71133,Caddo
+71134,Caddo
+71135,Caddo
+71136,Caddo
+71137,Caddo
+71138,Caddo
+71148,Caddo
+71149,Caddo
+71150,Caddo
+71151,Caddo
+71152,Caddo
+71153,Caddo
+71154,Caddo
+71156,Caddo
+71161,Caddo
+71162,Caddo
+71163,Caddo
+71164,Caddo
+71165,Caddo
+71166,Caddo
+71171,Bossier
+71172,Bossier
+71201,Ouachita
+71202,Ouachita
+71203,Ouachita
+71207,Ouachita
+71208,Ouachita
+71209,Ouachita
+71210,Ouachita
+71211,Ouachita
+71212,Ouachita
+71213,Ouachita
+71217,Ouachita
+71218,Richland
+71219,Franklin
+71220,Morehouse
+71221,Morehouse
+71222,Union
+71223,Morehouse
+71225,Ouachita
+71226,Jackson
+71227,Lincoln
+71229,Morehouse
+71230,Franklin
+71232,Richland
+71233,Madison
+71234,Union
+71235,Lincoln
+71237,West Carroll
+71238,Ouachita
+71240,Ouachita
+71241,Union
+71242,West Carroll
+71243,Franklin
+71245,Lincoln
+71247,Jackson
+71249,Franklin
+71250,Morehouse
+71251,Jackson
+71253,West Carroll
+71254,East Carroll
+71256,Union
+71259,Richland
+71260,Union
+71261,Morehouse
+71263,West Carroll
+71264,Morehouse
+71266,West Carroll
+71268,Jackson
+71269,Richland
+71270,Lincoln
+71271,Richland
+71272,Lincoln
+71273,Lincoln
+71275,Lincoln
+71276,East Carroll
+71277,Union
+71279,Richland
+71280,Union
+71281,Ouachita
+71282,Madison
+71284,Madison
+71286,East Carroll
+71291,Ouachita
+71292,Ouachita
+71294,Ouachita
+71295,Franklin
+71301,Rapides
+71302,Rapides
+71303,Rapides
+71306,Rapides
+71307,Rapides
+71309,Rapides
+71315,Rapides
+71316,Concordia
+71320,Avoyelles
+71322,Avoyelles
+71323,Avoyelles
+71324,Franklin
+71325,Rapides
+71326,Catahoula
+71327,Avoyelles
+71328,Rapides
+71329,Avoyelles
+71330,Rapides
+71331,Avoyelles
+71333,Avoyelles
+71334,Concordia
+71336,Franklin
+71339,Avoyelles
+71340,Catahoula
+71341,Avoyelles
+71342,La Salle
+71343,Catahoula
+71345,St. Landry
+71346,Rapides
+71348,Rapides
+71350,Avoyelles
+71351,Avoyelles
+71353,St. Landry
+71354,Concordia
+71355,Avoyelles
+71356,St. Landry
+71357,Tensas
+71358,St. Landry
+71359,Rapides
+71360,Rapides
+71361,Rapides
+71362,Avoyelles
+71363,Catahoula
+71365,Rapides
+71366,Tensas
+71367,Evangeline
+71368,Catahoula
+71369,Avoyelles
+71371,La Salle
+71373,Concordia
+71375,Tensas
+71377,Concordia
+71378,Franklin
+71401,Catahoula
+71403,Vernon
+71404,Winn
+71405,Rapides
+71406,Sabine
+71407,Grant
+71409,Rapides
+71410,Winn
+71411,Natchitoches
+71414,Natchitoches
+71415,Caldwell
+71416,Natchitoches
+71417,Grant
+71418,Caldwell
+71419,Sabine
+71422,Winn
+71423,Grant
+71424,Rapides
+71425,Catahoula
+71426,Sabine
+71427,Rapides
+71428,Natchitoches
+71429,Sabine
+71430,Rapides
+71431,Rapides
+71432,Grant
+71433,Rapides
+71434,Natchitoches
+71435,Caldwell
+71438,Rapides
+71439,Vernon
+71440,Winn
+71441,Caldwell
+71443,Vernon
+71444,Vernon
+71446,Vernon
+71447,Rapides
+71448,Rapides
+71449,Sabine
+71450,Natchitoches
+71451,Rapides
+71452,Natchitoches
+71454,Grant
+71455,Rapides
+71456,Natchitoches
+71457,Natchitoches
+71458,Natchitoches
+71459,Vernon
+71460,Sabine
+71461,Vernon
+71462,Sabine
+71463,Allen
+71465,La Salle
+71466,Rapides
+71467,Grant
+71468,Natchitoches
+71469,Natchitoches
+71471,Winn
+71472,Rapides
+71473,Winn
+71474,Vernon
+71475,Vernon
+71477,Rapides
+71479,Winn
+71480,La Salle
+71483,Winn
+71485,Rapides
+71486,Sabine
+71496,Vernon
+71497,Natchitoches
+71749,Union
