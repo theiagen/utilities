@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/frank/opt/anaconda3/bin/python
 
 # import sys
 # import csv
@@ -24,7 +24,7 @@ meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str, 'age': s
 output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade']
 
 # rename headers
-meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade'}, inplace=True)
+meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade', 'pangolin_lineage': 'pango_lineage'}, inplace=True)
 
 # drop extraneous cols
 drop_list = []
