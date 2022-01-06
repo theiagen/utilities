@@ -1,4 +1,5 @@
-#!/Users/frank/opt/anaconda3/bin/python
+#!/usr/bin/env python3
+
 
 # import sys
 # import csv
@@ -24,7 +25,7 @@ meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str, 'age': s
 output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade']
 
 # rename headers
-meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade', 'pangolin_lineage': 'pango_lineage'}, inplace=True)
+meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'gisaid_epi_isl': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade', 'pangolin_lineage': 'pango_lineage'}, inplace=True)
 
 # drop extraneous cols
 drop_list = []
@@ -74,7 +75,7 @@ labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
 # perform binning
 meta_df1['age_bins'] = pd.cut(x=meta_df1['age'], bins=bins1, labels=labels1, include_lowest=True)
 
-# replace all values >122 with unknown
+# replace all values >151 with unknown
 meta_df1['age'].replace(122, 'unknown', inplace=True)
 
 # replace all NA values with unknown
