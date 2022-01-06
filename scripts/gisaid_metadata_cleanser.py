@@ -74,8 +74,8 @@ labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
 # perform binning
 meta_df1['age_bins'] = pd.cut(x=meta_df1['age'], bins=bins1, labels=labels1, include_lowest=True)
 
-# replace all values >151 with unknown
-meta_df1['age'].replace(151, 'unknown', inplace=True)
+# replace all values >122 with unknown
+meta_df1['age'].replace(122, 'unknown', inplace=True)
 
 # replace all NA values with unknown
 meta_df1['age_bins'] = meta_df1['age_bins'].fillna('unknown')
