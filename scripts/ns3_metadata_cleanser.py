@@ -51,7 +51,7 @@ output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', '
 meta_df1.rename(columns={'vendor_accession': 'entity:{}_id'.format(root_entity_name1), 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
 
 # drop rows with NA in the gisaid_epi_isl column
-meta_df1.dropna(subset=['gisaid_accession'], inplace=True)
+# meta_df1.dropna(subset=['gisaid_accession'], inplace=True)
 
 # drop extraneous cols
 drop_list = []
