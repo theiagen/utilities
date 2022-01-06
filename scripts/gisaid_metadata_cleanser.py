@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/Users/frank/opt/anaconda3/bin/python
 
 # import sys
 # import csv
@@ -7,9 +7,9 @@ import pandas as pd
 #argpase used to take in command line arguments
 # three positional arguments, argparse might be overkill, sys command included
 def get_opts():
-	p = argparse.ArgumentParser(description = 'This program reads in a csv of sequence metadata and performs some reformatting and data sanitization then spits out a tsv to be uploaded to terra.bio', usage='[-h] metadata_cleanser.py <metadata_file.csv> <ZipCode_County_Lookup_Table> <outfile_name>')
+	p = argparse.ArgumentParser(description = 'This program reads in a tsv of sequence metadata and performs some reformatting and data sanitization then spits out a tsv to be uploaded to terra.bio', usage='[-h] metadata_cleanser.py <metadata_file.csv> <ZipCode_County_Lookup_Table> <outfile_name>')
 	p.add_argument('csv_meta_file',
-				help='csv metadata file input')
+				help='tsv metadata file input')
 	p.add_argument('out_file',
 				help='Output file: required, must be a string.')
 	args = p.parse_args()
@@ -18,13 +18,13 @@ arguments = get_opts()
 
 # read in metadata csv file
 meta_csv1 = arguments.csv_meta_file
-meta_df1 = pd.read_csv(meta_csv1)
+meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str, 'age': str})
 
 # input_headers = meta_df1.columns.values
-output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus']
+output_headers = ['entity:gisaid_louisiana_data_id', 'age', 'authors', 'country', 'country_exposure', 'date', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pangolin_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade']
 
 # rename headers
-meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'pangolin_lineage': 'pango_lineage', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade'}, inplace=True)
+meta_df1.rename(columns={'strain': 'entity:gisaid_louisiana_data_id', 'GISAID_accession': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'zip': 'county', 'GISAID_clade': 'gisaid_clade', 'pangolin_lineage': 'pango_lineage'}, inplace=True)
 
 # drop extraneous cols
 drop_list = []
@@ -42,8 +42,8 @@ meta_df1.replace("\n", value=' ', regex=True, inplace=True)
 # replace all forward slashes in first  with underscores
 meta_df1['entity:gisaid_louisiana_data_id'].replace('/', value='_', regex=True, inplace=True)
 
-# replace all commas with underscores
-meta_df1.replace(',', value='_', regex=True, inplace=True)
+# replace all commas with spaces
+meta_df1.replace(',', value=' ', regex=True, inplace=True)
 
 # replace all 'Unknown' with 'unknown'
 meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
@@ -66,7 +66,7 @@ meta_df1['age'].replace(age_range_replace_dict, inplace=True)
 meta_df1['age'] =pd.to_numeric(meta_df1['age'], errors ='coerce').fillna(151).astype('int')
 
 # set bin boundaries
-bins1 = [0, 4, 17, 49, 64, 150, 1000000]
+bins1 = [0, 4, 17, 49, 64, 123, 1000000]
 
 # give bins labels
 labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
@@ -74,14 +74,14 @@ labels1 = ['0-4', '5-17', '18-49', '50-64', '65<', 'unknown']
 # perform binning
 meta_df1['age_bins'] = pd.cut(x=meta_df1['age'], bins=bins1, labels=labels1, include_lowest=True)
 
-# replace all values >151 with unknown
-meta_df1['age'].replace(151, 'unknown', inplace=True)
+# replace all values >122 with unknown
+meta_df1['age'].replace(122, 'unknown', inplace=True)
 
 # replace all NA values with unknown
 meta_df1['age_bins'] = meta_df1['age_bins'].fillna('unknown')
 
 # remove duplicate lines, keeping the first values
-meta_df1.drop_duplicates(keep='first', inplace=True)
+meta_df1.drop_duplicates(subset='entity:gisaid_louisiana_data_id', keep='first', inplace=True)
 
 # Get outfile name
 out_file_name = arguments.out_file
