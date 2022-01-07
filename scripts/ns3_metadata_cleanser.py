@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+
 # import sys
 # import csv
 import argparse
@@ -33,6 +34,11 @@ def get_opts():
 				action='store_true',
 				dest='remove_blanks_bool',
 				help='This flag will turn on or off the removal of rows with a blank value in the gisaid_accession column.')
+	p.add_argument('-s',
+				'--swap',
+				action='store_true',
+				dest='swap_vendor_accession_and_gisaid_name_bool',
+				help='This flag will swap the vendor_accession column with the GISAID_name column.')
 	args = p.parse_args()
 	return args
 arguments = get_opts()
@@ -72,6 +78,14 @@ if rm_lines_w_blank_gisaid_accession==True:
 	meta_df1.dropna(subset=['gisaid_accession'], inplace=True)
 else:
 	print('Rows with no gisaid_accession will NOT be removed from the output.')
+
+# swap in the GISAID_name column in as the key column for the vendor_accession colum when the -s or --swap flag is activated
+swap_lines_bool = arguments.swap_vendor_accession_and_gisaid_name_bool
+if swap_lines_bool==True:
+	print('Key values will be the GISAID NAME')
+	meta_df1['entity:{}_id'.format(root_entity_name1)] = meta_df1['GISAID_name']
+else:
+	print('Key values will be the VENDOR ACCESSION')
 
 # drop extraneous cols
 drop_list = []
