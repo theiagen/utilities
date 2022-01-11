@@ -66,10 +66,13 @@ meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
 root_entity_name1 = arguments.root_entity
 
 # list of headers to be included in the final output file
-output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip']
+output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip', 'submitting_lab']
 
 # rename headers
 meta_df1.rename(columns={'vendor_accession': 'entity:{}_id'.format(root_entity_name1), 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
+
+# add col called 'submitting_lab' and fill with sequencing_lab values
+meta_df1['submitting_lab']= meta_df1['sequencing_lab']
 
 # drop rows with NA in the gisaid_epi_isl column if -r (--remove) flag is given
 rm_lines_w_blank_gisaid_accession = arguments.remove_blanks_bool
