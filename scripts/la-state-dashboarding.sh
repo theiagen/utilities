@@ -4,7 +4,7 @@ set -e
 # Set variables
 dashboarding_gcp_uri="gs://la-state-dashboarding/"
 dashboarding_newline_json="gisaid_louisiana_data.json"
-dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/bq_schemas/schema_LA_v3.json"
+dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/bq_schemas/schema_LA_v4.json"
 terra_table_root_entity="gisaid_louisiana_data"
 monitorring_dir="/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection"
 output_dir="/home/kevin_libuit/la_state_dashboarding/"
