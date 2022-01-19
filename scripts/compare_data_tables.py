@@ -4,6 +4,7 @@
 # import csv
 import argparse
 import pandas as pd
+from collections import defaultdict
 #argpase used to take in command line arguments
 # three positional arguments, argparse might be overkill, sys command included
 def get_opts():
@@ -12,7 +13,7 @@ def get_opts():
                 help='first tsv file input')
     p.add_argument('tsv_file_2',
                 help='second tsv file input')
-    p.add_argument('out_file',
+    p.add_argument('--out_file',
                 help='Output file: required, must be a string.')
     args = p.parse_args()
     return args
@@ -20,11 +21,10 @@ arguments = get_opts()
 tsv1 = arguments.tsv_file_1
 tsv2 = arguments.tsv_file_2
 
-df1 = pd.read_csv(tsv_file_1)
-df2 = pd.read_csv(tsv_file_2)df_diff_vert:{}
-df_diff_vert = df1.compare(df2, align_axis = 0)
-df_diff_horiz = df1.compare(df2, align_axis = 1)
+df1 = pd.read_csv(tsv1, sep='\t')
+df2 = pd.read_csv(tsv2, sep='\t')
 
+df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
+#df_diff_vert['equals'] = df_diff_vert.duplicated()
 
-print("df_diff_vert:{}".format(df_diff_vert))
-print("df_diff_horiz:{}".format(df_diff_horiz))
+print(f"{df_diff_vert}")
