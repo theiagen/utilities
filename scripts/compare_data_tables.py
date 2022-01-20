@@ -26,16 +26,22 @@ tsv2 = arguments.tsv_file_2
 df1 = pd.read_csv(tsv1, sep='\t')
 df2 = pd.read_csv(tsv2, sep='\t')
 
+root_entity1 = df1.columns[0]
+root_entity2 = df2.columns[0]
+df1.rename(columns={ df1.columns[0]: "col1" }, inplace = True)
+df2.rename(columns={ df2.columns[0]: "col1" }, inplace = True)
+
 df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
 #df_diff_vert['equals'] = df_diff_vert.duplicated()
 
-out_basename = arguments.outfile
+out_basename = arguments.out_file
 out_html_name='{}.html'.format(out_basename)
 out_pdf_name='{}.pdf'.format(out_basename)
 
 df_diff_vert.to_html(out_html_name)
+out_pdf_var=out_html_name
 pdf.from_file(out_html_name, out_pdf_name)
 
 
-
-print(f"{df_diff_vert}")
+# print('df1:\n{}\ndf2:{}'.format(df1, df2))
+# print(f"{df_diff_vert}")
