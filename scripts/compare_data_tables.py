@@ -4,6 +4,7 @@
 # import csv
 import argparse
 import pandas as pd
+import pdfkit as pdf
 from collections import defaultdict
 #argpase used to take in command line arguments
 # three positional arguments, argparse might be overkill, sys command included
@@ -26,5 +27,14 @@ df2 = pd.read_csv(tsv2, sep='\t')
 
 df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
 #df_diff_vert['equals'] = df_diff_vert.duplicated()
+
+out_basename = arguments.outfile
+out_html_name='{}.html'.format(out_basename)
+out_pdf_name='{}.pdf'.format(out_basename)
+
+df_diff_vert.to_html(out_html_name)
+pdf.from_file(out_html_name, out_pdf_name)
+
+
 
 print(f"{df_diff_vert}")
