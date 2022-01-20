@@ -15,6 +15,7 @@ def get_opts():
     p.add_argument('tsv_file_2',
                 help='second tsv file input')
     p.add_argument('--out_file',
+                default='outfile',
                 help='Output file: required, must be a string.')
     args = p.parse_args()
     return args
