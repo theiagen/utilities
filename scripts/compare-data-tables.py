@@ -67,8 +67,32 @@ if __name__ == '__main__':
     df1, df1_c1_name = read_tsv(args.tsv1)
     df2, df2_c1_name = read_tsv(args.tsv2)
 
-    df_comp1 = df1.compare(df2, align_axis=1, keep_shape=False, keep_equal=False)
+    print(df1.columns)
+    # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
+    keepers_list=['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+    drop_list1 = []
+    drop_list2 = []
+
+    for i in df1.columns:
+    	if i not in keepers_list:
+    		drop_list1.append(i)
+    df1.drop(drop_list1, axis='columns', inplace=True)
+
+    for j in df2.columns:
+    	if j not in keepers_list:
+    		drop_list2.append(j)
+    df2.drop(drop_list2, axis='columns', inplace=True)
+
+    if drop_list1 != drop_list2:
+        print('Datatables have different sets of extraneous columns.')
+    else:
+        print('Datatables have the same set of extraneous columns.')
+
+    # Perform comparison
+    df_comp1 = df1.compare(df2, align_axis=1, keep_shape=True, keep_equal=False)
+    # Replace NAs with "EXACT_MATCH"
     df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
+
     # Get the side-by-side comparison of the TSVs
     # df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
     # df_comp_bool = df1.where()
@@ -81,7 +105,11 @@ if __name__ == '__main__':
     #for i, data in df_diff_vert.iterrows():
     #    if data[0]['self'] != data[0]['other']:
     #        print(f"{data.name}\t{data[0]['self'] == data[0]['other']}\t{data[0]['self']}\t{data[0]['other']}")
-
+    count_dict={}
+    for i in df_comp1.columns:
+        count_dict[i]=df_comp1[i].value_counts()
+    counts_df=pd.DataFrame.from_dict(count_dict, orient='columns', dtype=None, columns=None)
+    print(counts_df)
 
 
     out_xlsx_name=f'{args.outdir}/{args.prefix}.xlsx'
