@@ -90,6 +90,11 @@ if __name__ == '__main__':
 
     # Perform comparison
     df_comp1 = df1.compare(df2, align_axis=1, keep_shape=True, keep_equal=False)
+    # Count non-NA values in each columns
+    val_cnts = df_comp1.count()
+    df_val_cnts=val_cnts.to_frame()
+    df_val_cnts.columns = ['Number of Diffs']
+    print(df_val_cnts)
     # Replace NAs with "EXACT_MATCH"
     df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
 
@@ -105,6 +110,8 @@ if __name__ == '__main__':
     #for i, data in df_diff_vert.iterrows():
     #    if data[0]['self'] != data[0]['other']:
     #        print(f"{data.name}\t{data[0]['self'] == data[0]['other']}\t{data[0]['self']}\t{data[0]['other']}")
+
+
     count_dict={}
     for i in df_comp1.columns:
         count_dict[i]=df_comp1[i].value_counts()
@@ -118,11 +125,11 @@ if __name__ == '__main__':
 
     pd.set_option('display.max_colwidth', 20)
     df_comp1.to_excel(out_xlsx_name)
-    df_comp1.to_html(out_html_name)
+    df_val_cnts.to_html(out_html_name)
 
     options = {
     'page-width': '10000mm',
-    'orientation': 'landscape',
+    'title': 'Validation Report',
     'margin-top': '0.25in',
     'margin-right': '0.25in',
     'margin-bottom': '0.25in',
