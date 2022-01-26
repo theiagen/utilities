@@ -59,7 +59,7 @@ if __name__ == '__main__':
         if not os.path.isfile(tsv_file):
             print(f'Unable to locate TSV file: {tsv_file}', file=sys.stderr)
             has_error = True
-    
+
     if has_error:
         sys.exit(1)
 
@@ -67,9 +67,11 @@ if __name__ == '__main__':
     df1, df1_c1_name = read_tsv(args.tsv1)
     df2, df2_c1_name = read_tsv(args.tsv2)
 
+    df_comp1 = df1.compare(df2, align_axis=1, keep_shape=False, keep_equal=False)
+    df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
     # Get the side-by-side comparison of the TSVs
-    df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
-
+    # df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
+    # df_comp_bool = df1.where()
     #missing_samples = []
 
     # Compare samples
@@ -79,10 +81,26 @@ if __name__ == '__main__':
     #for i, data in df_diff_vert.iterrows():
     #    if data[0]['self'] != data[0]['other']:
     #        print(f"{data.name}\t{data[0]['self'] == data[0]['other']}\t{data[0]['self']}\t{data[0]['other']}")
+
+
+
+    out_xlsx_name=f'{args.outdir}/{args.prefix}.xlsx'
     out_html_name=f'{args.outdir}/{args.prefix}.html'
     out_pdf_name=f'{args.outdir}/{args.prefix}.pdf'
 
-    pd.set_option('display.max_colwidth', 40)
-    df_diff_vert.to_html(out_html_name)
+    pd.set_option('display.max_colwidth', 20)
+    df_comp1.to_excel(out_xlsx_name)
+    df_comp1.to_html(out_html_name)
+
+    options = {
+    'page-width': '10000mm',
+    'orientation': 'landscape',
+    'margin-top': '0.25in',
+    'margin-right': '0.25in',
+    'margin-bottom': '0.25in',
+    'margin-left': '0.25in'}
     out_pdf_var=out_html_name
-    pdf.from_file(out_html_name, out_pdf_name)
+    pdf1 = pdf.from_file(out_html_name, out_pdf_name, options=options)
+
+
+    print(df_comp1)
