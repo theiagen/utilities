@@ -37,6 +37,11 @@ if [ -z $alt_delimiter ]; then
 	alt_delimiter="_"
 fi
 
+# set default for $terra_upload_set in case user does not set
+if [ -z $terra_upload_set ]; then
+	terra_upload_set="$(date -I)-set"
+fi
+
 # Capture date to tag output file
 date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 
