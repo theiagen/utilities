@@ -96,7 +96,7 @@ if __name__ == '__main__':
     df_val_cnts.columns = ['Number of Diffs']
     print(df_val_cnts)
     # Replace NAs with "EXACT_MATCH"
-    df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
+    df_comp1.fillna(value='-', method=None, axis=None, inplace=True, limit=None, downcast=None)
 
     # Get the side-by-side comparison of the TSVs
     # df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
