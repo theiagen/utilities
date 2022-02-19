@@ -98,26 +98,11 @@ if __name__ == '__main__':
     # Replace NAs with "EXACT_MATCH"
     df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
 
-    # Get the side-by-side comparison of the TSVs
-    # df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
-    # df_comp_bool = df1.where()
-    #missing_samples = []
-
-    # Compare samples
-    #print(df1.samples.values)
-    #print('column\tis_same\ttsv1\ttsv2')
-    #print(f'filename\t{args.tsv1==args.tsv2}\t{args.tsv1}\t{args.tsv2}')
-    #for i, data in df_diff_vert.iterrows():
-    #    if data[0]['self'] != data[0]['other']:
-    #        print(f"{data.name}\t{data[0]['self'] == data[0]['other']}\t{data[0]['self']}\t{data[0]['other']}")
-
-
     count_dict={}
     for i in df_comp1.columns:
         count_dict[i]=df_comp1[i].value_counts()
     counts_df=pd.DataFrame.from_dict(count_dict, orient='columns', dtype=None, columns=None)
     print(counts_df)
-
 
     out_xlsx_name=f'{args.outdir}/{args.prefix}.xlsx'
     out_html_name=f'{args.outdir}/{args.prefix}.html'
