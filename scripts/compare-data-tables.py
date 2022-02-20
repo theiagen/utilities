@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     print(df1.columns)
     # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
-    keepers_list=['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+    keepers_list=[df1_c1_name, df1_c1_name, 'assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
     drop_list1 = []
     drop_list2 = []
 
