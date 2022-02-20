@@ -69,7 +69,11 @@ if __name__ == '__main__':
 
     print(df1.columns)
     # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
+<<<<<<< HEAD
     keepers_list=[df1_c1_name, df1_c1_name, 'assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+=======
+    keepers_list=['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+>>>>>>> main
     drop_list1 = []
     drop_list2 = []
 
@@ -96,7 +100,11 @@ if __name__ == '__main__':
     df_val_cnts.columns = ['Number of Diffs']
     print(df_val_cnts)
     # Replace NAs with "EXACT_MATCH"
+<<<<<<< HEAD
     df_comp1.fillna(value='-', method=None, axis=None, inplace=True, limit=None, downcast=None)
+=======
+    df_comp1.fillna(value='EXACT_MATCH', method=None, axis=None, inplace=True, limit=None, downcast=None)
+>>>>>>> main
 
     # Get the side-by-side comparison of the TSVs
     # df_diff_vert = df1.compare(df2, align_axis = 0, keep_shape=True, keep_equal=True).transpose()
