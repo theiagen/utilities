@@ -4,7 +4,7 @@ set -e
 # Set variables
 dashboarding_gcp_uri="gs://la-state-dashboarding/"
 dashboarding_newline_json="gisaid_louisiana_data.json"
-dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v2.json"
+dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/bq_schemas/schema_LA_v5.json"
 terra_table_root_entity="gisaid_louisiana_data"
 monitorring_dir="/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection"
 output_dir="/home/kevin_libuit/la_state_dashboarding/"
@@ -17,8 +17,8 @@ HELP="
 
   Usage: ...
 "
- 
-if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project || -z $terra_workspace || -z $bq_load_schema ]]; then 
+
+if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project || -z $terra_workspace || -z $bq_load_schema ]]; then
   echo "One or more required inputs not defined. $HELP"
   exit 0
 fi
@@ -33,16 +33,16 @@ echo "LA State Dashboarding Automated System initiated at ${date_tag}" | tee ${o
 # Start monitorring specified directory for the creation of new assembly_files
 inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action file; do
     echo "The file '$file' appeared in directory '$dir' via '$action'" >> ${output_dir}/automation_logs/inotifywait.log
-    
+
     # if the created file is a gisaid_auspice input file, integrate into Terra and BQ
-    if [[ "$file" == "gisaid_auspice_input"*"tar" ]]; then 
+    if [[ "$file" == "gisaid_auspice_input"*"tar" ]]; then
       echo "New gisaid file identified: $file" >> ${output_dir}/automation_logs/inotifywait.log
       date_tag=$(date +"%Y-%m-%d")
       gisaid_dir="${output_dir}/gisaid_files/${date_tag}/"
       file="${monitorring_dir}/${file}"
-      
+
       SCRIPTS="
-      # decompress tar ball 
+      # decompress tar ball
       \n
       mkdir ${gisaid_dir}
       \n
@@ -64,17 +64,17 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       terra_table_from_gcp_assemblies.sh ${gcp_uri}uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\"
       \n
       \n
-      # Capture, reformat, and prune GISAID metadata 
+      # Capture, reformat, and prune GISAID metadata
       \n
       gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
       \n
       \n
-      # Import of formatted data table into Terra 
+      # Import of formatted data table into Terra
       \n
       docker run --rm -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv /data/gisaid_metadata_${date_tag}.tsv\"
       \n
       \n
-      # Capture full terra data table as tsv 
+      # Capture full terra data table as tsv
       \n
       docker run --rm -v \"$HOME\"/.config:/.config -v ${gisaid_dir}:/data broadinstitute/terra-tools:tqdm bash -c \"cd data; python3 /scripts/export_large_tsv/export_large_tsv.py --project cdc-terra-la-phl --workspace CDC-COVID-LA-Dashboard --entity_type gisaid_louisiana_data --tsv_filename full_louisiana_terra_table_${date}.tsv\"
       \n
@@ -82,38 +82,24 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       tsv_to_newline_json.py ${gisaid_dir}/full_louisiana_terra_table_${date}.tsv ${gisaid_dir}/gisaid_louisiana_data_${date_tag}
       \n
-      \n 
+      \n
       # Push to GCP bucket
       \n
       gsutil cp  ${gisaid_dir}/gisaid_louisiana_data_${date_tag}.json ${dashboarding_gcp_uri}gisaid_louisiana_data.json
       \n
       gsutil cp  ${gisaid_dir}/gisaid_louisiana_data_${date_tag}.json ${dashboarding_gcp_uri}backup/
-      \n  
+      \n
       \n
       # Load newline-json to BQ
       \n
       bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON sars_cov_2_dashboard.la_state_gisaid_specimens ${dashboarding_gcp_uri}gisaid_louisiana_data.json ${dashboarding_schema}
       \n
-      " 
+      "
       echo -e "#### Capturing GISAID data into Dashboard (${date_tag}) ####\n" >> ${output_dir}/automation_logs/automation_executables.txt
       echo -e $SCRIPTS >> ${output_dir}/automation_logs/automation_executables.txt
-      
+
       echo -e $SCRIPTS | bash
-      
+
     fi
 
 done
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-     
-
