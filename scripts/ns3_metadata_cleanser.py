@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-
-
-
 # import sys
 # import csv
 import argparse
@@ -66,7 +63,7 @@ meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
 root_entity_name1 = arguments.root_entity
 
 # list of headers to be included in the final output file
-output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'pango_lineage', 'sequencing_lab', 'state', 'zip', 'submitting_lab']
+output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'sequencing_lab', 'state', 'submitting_lab']
 
 # rename headers
 meta_df1.rename(columns={'vendor_accession': 'entity:{}_id'.format(root_entity_name1), 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
