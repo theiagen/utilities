@@ -4,26 +4,25 @@ set -e
 # Set variables
 dashboarding_gcp_uri="gs://la-state-dashboarding/"
 dashboarding_newline_json="gisaid_louisiana_data.json"
-dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/bq_schemas/schema_LA_v5.json"
+dashboarding_schema="/home/kevin_libuit/la_state_dashboarding/bq_schemas/schema_LA_v6.json"
 terra_table_root_entity="gisaid_louisiana_data"
 monitorring_dir="/home/kevin_libuit/la_state_dashboarding/terra_gisaid_collection"
 output_dir="/home/kevin_libuit/la_state_dashboarding/"
 gcp_uri="gs://fc-dc36d985-ee37-436c-8cc8-8314067696b2/"
 terra_project="cdc-terra-la-phl"
 terra_workspace="CDC-COVID-LA-Dashboard"
-bq_load_schema="/home/kevin_libuit/la_state_dashboarding/schema_LA_v1.json"
 
 HELP="
 
   Usage: ...
 "
 
-if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project || -z $terra_workspace || -z $bq_load_schema ]]; then
+if [[ -z $monitorring_dir || -z $output_dir || -z $gcp_uri || -z $terra_project || -z $terra_workspace || -z $dashboarding_schema ]]; then
   echo "One or more required inputs not defined. $HELP"
   exit 0
 fi
 
-echo "monitorring_dir: ${monitorring_dir}, output_dir: ${output_dir}, gcp_uri: ${gcp_uri}, terra_project: ${terra_project}, terra_workspace: ${terra_workspace}, bq_load_schema: ${bq_load_schema}"
+echo "monitorring_dir: ${monitorring_dir}, output_dir: ${output_dir}, gcp_uri: ${gcp_uri}, terra_project: ${terra_project}, terra_workspace: ${terra_workspace}, bq_load_schema: ${dashboarding_schema}"
 
 # Create output sub directories
 mkdir -p ${output_dir}/{automation_logs,gisaid_files}
@@ -61,7 +60,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       # Create and Import Terra Data table containing GCP pointers to deposited assemblies
       \n
-      terra_table_from_gcp_assemblies.sh ${gcp_uri}uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\"
+      terra_table_from_gcp_assemblies.sh ${gcp_uri}uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
       \n
       \n
       # Capture, reformat, and prune GISAID metadata
