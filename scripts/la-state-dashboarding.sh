@@ -61,7 +61,7 @@ inotifywait -m ${monitorring_dir} -e create -e moved_to | while read dir action 
       \n
       # Create and Import Terra Data table containing GCP pointers to deposited assemblies
       \n
-      terra_table_from_gcp_assemblies.sh ${gcp_uri}uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ~{date_tag}
+      terra_table_from_gcp_assemblies.sh ${gcp_uri}uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
       \n
       \n
       # Capture, reformat, and prune GISAID metadata 
