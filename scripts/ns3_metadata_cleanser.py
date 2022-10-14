@@ -48,25 +48,31 @@ meta_df1 = pd.read_csv(meta_csv1, dtype={'zip': str})
 zip_csv1 = arguments.county_zipcodes_file
 zip_df1 = pd.read_csv(zip_csv1, dtype={'ZipCode': str})
 
+# split 9-digit zip codes to only contain 5-digit zip code in "zip1" column 
+# applicable for zip codes e.g. 94102-1234
 meta_df1[['zip1','zip2']] = meta_df1['zip'].str.split('-',expand=True)
 
-
+# split on decimal for zips that look like: "94102.0000" 
+# new column "zip3" would be "94102" after splitting on period
+meta_df1['zip3'] = meta_df1['zip1'].str.split('.',expand=True)[0]
 
 # make a dictionary for fast zip/county lookups
 zip_county_lookup_dict = dict(zip(zip_df1.ZipCode, zip_df1.County))
 
 # add new column 'county' mapped from zip
-meta_df1['county'] = meta_df1['zip1'].map(zip_county_lookup_dict)
+meta_df1['county'] = meta_df1['zip3'].map(zip_county_lookup_dict)
 
 
 # read in the root entity for the terra data table
 root_entity_name1 = arguments.root_entity
 
 # list of headers to be included in the final output file
-output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'nextclade_clade', 'sequencing_lab', 'state', 'submitting_lab']
+# CJK removed 'nextclade_clade' from here 2022-05-23
+output_headers = ['entity:{}_id'.format(root_entity_name1), 'collection_date', 'county', 'gisaid_accession', 'sequencing_lab', 'state', 'submitting_lab']
 
 # rename headers
-meta_df1.rename(columns={'vendor_accession': 'entity:{}_id'.format(root_entity_name1), 'GISAID_accession': 'gisaid_accession', 'clade_Nextclade_clade': 'nextclade_clade', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
+# CJK removed 'clade_Nextclade_clade': 'nextclade_clade' from here 2022-05-23
+meta_df1.rename(columns={'vendor_accession': 'entity:{}_id'.format(root_entity_name1), 'GISAID_accession': 'gisaid_accession', 'lineage_PANGO_lineage': 'pango_lineage', 'vendor': 'sequencing_lab'}, inplace=True)
 
 # add col called 'submitting_lab' and fill with sequencing_lab values
 meta_df1['submitting_lab']= meta_df1['sequencing_lab']
