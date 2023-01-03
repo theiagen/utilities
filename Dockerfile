@@ -26,13 +26,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  apt-get autoclean && rm -rf /var/lib/apt/lists/* && mkdir /data
 
 # copy in theiagen/utilities scripts
-COPY /scripts /scripts
+COPY scripts/ /utilities/scripts
+
+# copy in reference files
+COPY reference_files/ /utilities/reference_files
 
 # copy in conda environment yml file
-COPY env.yml /env.yml
+COPY env.yml /utilities/env.yml
 
 # install things into base conda/mamba environment
-RUN micromamba install -n base -f /env.yml -y && \
+RUN micromamba install -n base -f /utilities/env.yml -y && \
  micromamba clean -a -y
 
 # so that mamba/conda env is active when running below commands
@@ -43,7 +46,7 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 WORKDIR /data
 
 # hardcode executables from base conda env into the PATH variable; LC_ALL for singularity compatibility
-ENV PATH="${PATH}:/opt/conda/bin/:/scripts" \
+ENV PATH="${PATH}:/opt/conda/bin/:/utilities/scripts" \
  LC_ALL=C.UTF-8
 
 # new base for testing
