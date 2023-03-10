@@ -133,7 +133,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create individual fasta files from GISAID multifasta
   \n
-  python3 /data/utilities/scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir}
+  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir}
   \n
   \n
   # Deposit individual fasta files into Terra GCP bucket
@@ -143,12 +143,12 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create and import Terra Data table containing GCP pointers to deposited assemblies
   \n
-  /data/utilities/scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I) ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" $(date -I)
+  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I) ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" $(date -I)
   \n
   \n
   # Capture, reformat, and prune GISAID metadata
   \n
-  python3 /data/utilities/scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${metadata_cleanser_parameters}
+  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${metadata_cleanser_parameters}
   \n
   \n
   # Import formatted data table into Terra
@@ -163,7 +163,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Convert the local Terra table tsv into a newline json
   \n
-  python3 /data/utilities/scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
+  python3 /scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
   \n
   \n
   # Push newline json to the dashboard GCP bucket and backup folder
