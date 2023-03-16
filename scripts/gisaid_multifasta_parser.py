@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 
-
 import argparse
 import pyfaidx
 import time
 import os
 import sys
 
-# three positional inputs
-
+# two positional inputs
 def get_opts():
-	p = argparse.ArgumentParser(description = 'This program will parse the multifasta file provided in the gisaid tarball download of augur input files', usage='[-h] gisaid_multifasta_parser.py <gisaid_multifasta>')
+	p = argparse.ArgumentParser(description = 'This program will parse the multifasta file provided in the gisaid tarball download of augur input files', usage='[-h] gisaid_multifasta_parser.py <gisaid_multifasta> <output_dir>')
 	p.add_argument('gisaid_multifasta_file',
 				help='multifasta input file: Enter a multifasta file containing DNA sequence.')
-	p.add_argument('output_dir_input',
+	p.add_argument('output_dir',
 				help='Location of output directory.')
 	args = p.parse_args()
 	return args
 arguments = get_opts()
+
 fasta1 = arguments.gisaid_multifasta_file
-output_dir_loc = arguments.output_dir_input
+output_dir_loc = arguments.output_dir
+
 # use pyfaidx to read in the fasta file to create a dictionary-like object and in the event of a duplicate sequence keey only take the first entry💪💪💪
 seqs1 = pyfaidx.Fasta(fasta1, duplicate_action="first")
 
@@ -34,6 +34,7 @@ for i in seqs1.keys():
 no_slashes_seq_names_list = []
 for i in original_seq_names_list:
     j = i.replace('/','_')
+    j = j.replace('|',"_") # to prevent accidental piping
     no_slashes_seq_names_list.append(j)
 
 # zip sequences and new slashless names into dicitonary

@@ -1,0 +1,61 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - jobId: ${ "louisiana-dashboard-" + string(int(sys.now()))}
+          - newFile: ${args.data.name}
+    - logCreateBatchJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job " + jobId}
+    - createAndRunBatchJob:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${jobId}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "quay.io/theiagen/terra-tools:2023-02-13"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/louisiana-bucket:/data"
+                          - "/mnt/disks/louisiana-bucket/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash /data/standard-dashboard.sh -d gs://louisiana-dashboard-processing -j gisaid_louisiana_data.json -s /data/bq_schema/schema_LA_v6.json -b /data/input_gisaid -o /data -t gs://louisiana-gisaid-data -g gs://fc-6c0c9352-49f4-4673-a41c-71baddb16f42 -r gisaid_louisiana_data -p cdc-terra-la-phl -w CDC-COVID-LA-Dashboard-Test -q sars_cov_2_dashboard.workflow_test -i " + newFile}
+                  volumes:
+                    - gcs:
+                        remotePath: "louisiana-dashboard-processing"
+                      mountPath: "/mnt/disks/louisiana-bucket"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: createAndRunBatchJobResponse
+    - getJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + jobId}
+          auth:
+            type: OAuth2
+        result: getJobResult
+    - logState:
+        call: sys.log
+        args:
+          data: ${ "Current job state " + getJobResult.body.status.state}
+    - returnResult:
+        return:
+          jobId: ${jobId}
+          status: "OK"

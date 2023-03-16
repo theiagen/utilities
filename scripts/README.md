@@ -35,3 +35,81 @@ $ concatenate-across-lanes.sh . dry
 $ concatenate-across-lanes.sh . >concatenate-across-lanes.log 2>&1
 ```
 
+### gisaid_metadata_cleanser.py
+
+This python script will read in a tsv of sequence metadata, perform some reformatting and data sanitization, and then produce a tsv that can be uploaded to Terra.
+
+#### requirements
+Positional inputs required:
+ - tsv_meta_file (assumes GISAID-generated tsv)
+ - out_file (output file name)
+ - table_name (the name of the terra table; do not include entity: or _id)
+ 
+Optional input parameters:
+ - `--puertorico` which performs Puerto Rico-specific actions, like removing pango_lineage from the metadata and all samples with PR-CVL in their name
+
+#### usage
+```bash
+$ python3 gisaid_metadata_cleanser.py <tsv_meta_file> <out_file> <table_name> <optional_parameters>
+```
+
+### gisaid_multifasta_parser.py
+
+This python script will parse the mutlifasta file provided in the gisaid auspice tarball 
+
+#### requirements
+Two positional inputs required:
+ - gisaid_multifasta_file (the multifasta file from the auspice tarball)
+ - output_dir (the location of the output directory
+
+#### usage
+```bash
+$ python3 gisaid_multifasta_parser.py <gisaid_multifasta> <output_dir> 
+```
+
+
+### terra_table_from_gcp_assemblies.sh
+
+This shell script will create a Terra data table with sample names and GCP pointers to assemblies, and then import it to a Terra workspace. 
+
+#### requirements
+Five positional arguments required:
+ - gcp_uri : the gcp_uri for the bucket containing the assembly files
+ - terra_project : the terra projet that will host incoming terra table
+ - terra_workspace : the terra workspace that will host incoming terra table
+ - root_entity : the name of the terra table root entity; do not include entity: or _id
+ - output_dir : path to local directory where a copy of the terra table will be saved
+
+Two optional arguments:
+ - alt_delimiter : file delimiter to pull sample name from file, an underscore is the default
+ - terra_upload_set : the name of the set applied to the data; by default the date is used
+
+#### usage
+```bash
+$ ./terra_table_from_gcp_assemblies.sh <gcp_uri> <terra_project> <terra_workspace> <root_entity> <output_dir> <alt_delimiter> <terra_upload_set>
+```
+
+### tsv_to_newline_json.py
+
+This python script converts a tsv file into a newline json. 
+
+#### requirements
+Two positional inputs required:
+ - tsv_file : the input tsv file
+ - output_name : the name of the ouptut file (do not include .json)
+
+#### usage
+```bash
+$ python3 tsv_to_newline_json.py <tsv_file> <output_name>
+```
+
+### standard-dashboard.sh
+
+This shell script performs all of the functions necessary to transform a given GISAID-generated auspice tarball into a Big Query upload.
+
+#### usage
+```bash 
+# read the help message
+$ ./standard-dashboard.sh -h
+```
+
