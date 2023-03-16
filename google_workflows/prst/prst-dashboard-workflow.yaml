@@ -1,0 +1,61 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - jobId: ${ "prst-dashboard-" + string(int(sys.now()))}
+          - newFile: ${args.data.name}
+    - logCreateBatchJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job " + jobId}
+    - createAndRunBatchJob:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${jobId}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "quay.io/theiagen/terra-tools:2023-03-16"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/prst-bucket:/data"
+                          - "/mnt/disks/prst-bucket/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ 'bash /data/standard-dashboard.sh -d gs://pr-sci-trust-dashboard -j pr_dashboard_first_attempt.json -s /data/bq_schema/schema_PRST_v1.json -b /data/input_gisaid -o /data -t gs://pr-dashboard-gisaid-data -g gs://fc-b4d25547-715f-4139-8276-a2aff0ae00c1 -r pr_dashboard_test -p theiagen-prscitrust -w PR-SCITRUST-COVID -q pr_sci_trust_dashboard.test -m "--puertorico" -i ' + newFile}
+                  volumes:
+                    - gcs:
+                        remotePath: "pr-sci-trust-dashboard"
+                      mountPath: "/mnt/disks/prst-bucket"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: createAndRunBatchJobResponse
+    - getJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + jobId}
+          auth:
+            type: OAuth2
+        result: getJobResult
+    - logState:
+        call: sys.log
+        args:
+          data: ${ "Current job state " + getJobResult.body.status.state}
+    - returnResult:
+        return:
+          jobId: ${jobId}
+          status: "OK"
