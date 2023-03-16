@@ -14,9 +14,9 @@ def get_opts():
     return args
 arguments = get_opts()
 
-# read in metadata csv file
-meta_csv1 = arguments.csv_meta_file
-meta_df1 = pd.read_csv(meta_csv1, delimiter='\t', dtype={'strain': str, 'age': str})
+# read in metadata tsv file
+meta_tsv1 = arguments.tsv_meta_file
+meta_df1 = pd.read_csv(meta_tsv1, delimiter='\t', dtype={'strain': str, 'age': str})
 
 
 table_name = "entity:" + arguments.table_name + "_id"
