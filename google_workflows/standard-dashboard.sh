@@ -41,7 +41,7 @@ eval set -- "$PARSED_ARGUMENTS"
 
 while true; do
   case "$1" in
-	  -v|--version)
+    -v|--version)
       echo $VERSION; exit 0;;
     -h|--help)
       showHelp; exit 0;;
@@ -69,8 +69,8 @@ while true; do
       big_query_table_name=$2; shift 2;;
     -m|--metadata-parameters)
       puerto_rico=$2; shift 2;;
-	  -i|--input-tar-file)
-	    input_tar_file=$2; shift 2;;
+    -i|--input-tar-file)
+      input_tar_file=$2; shift 2;;
     --) shift; break ;;
       *) echo "Unexpected option: $1 -- this should not happen."; exit 1;;
   esac
