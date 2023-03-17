@@ -27,7 +27,7 @@ Usage: ./standard_dashboard.sh
 	[ -p | --terra-project ] the project hosting the terra workspace ("cdc-terra-la-phl")
 	[ -w | --terra-workspace ] the terra workspace ("CDC-COVID-LA-Dashboard-Test")
 	[ -q | --big-query-table-name ] the name of the big query table to upload to ("sars_cov_2_dashboard.workflow_la_state_gisaid_specimens_test")
-	[ -m | --metadata-parameters ] (optional) any additional metadata cleanser parameter (enclose in quotes). available options: "--puertorico"
+	[ -m | --metadata-parameters ] (optional) any additional metadata cleanser parameter. available options: puertorico
 	[ -i | --input-tar-file ] the tar file given to the script by the Google Trigger
 
 Happy dashboarding!
@@ -148,7 +148,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Capture, reformat, and prune GISAID metadata
   \n
-  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${metadata_cleanser_parameters}
+  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} "--${metadata_cleanser_parameters}"
   \n
   \n
   # Import formatted data table into Terra
