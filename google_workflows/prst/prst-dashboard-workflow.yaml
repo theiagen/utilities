@@ -55,6 +55,18 @@ main:
         call: sys.log
         args:
           data: ${ "Current job state " + getJobResult.body.status.state}
+    - checkState:
+        switch:
+          - condition: ${getJobResult.body.status.state == "SUCCEEDED"}
+            next: returnResult
+          - condition: ${getJobResult.body.status.state == "FAILED"}
+            next: returnResult
+        next: sleep
+    - sleep:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getJob
     - returnResult:
         return:
           jobId: ${jobId}
