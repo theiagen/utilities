@@ -35,7 +35,7 @@ main:
                           - "/mnt/disks/prst-bucket/.config:/.config"
                         commands:
                           - "-c"
-                          - ${ 'bash /data/standard-dashboard.sh -d gs://pr-sci-trust-dashboard -j pr_dashboard_first_attempt.json -s /data/bq_schema/schema_PRST_v1.json -b /data/input_gisaid -o /data -t gs://pr-dashboard-gisaid-data -g gs://fc-b4d25547-715f-4139-8276-a2aff0ae00c1 -r pr_dashboard_test -p theiagen-prscitrust -w PR-SCITRUST-COVID -q pr_sci_trust_dashboard.test -m "--puertorico" -i ' + newFile}
+                          - ${ "bash /data/standard-dashboard.sh -d gs://pr-sci-trust-dashboard -j pr_dashboard_first_attempt.json -s /data/bq_schema/schema_PRST_v1.json -b /data/input_gisaid -o /data -t gs://pr-dashboard-gisaid-data -g gs://fc-b4d25547-715f-4139-8276-a2aff0ae00c1 -r pr_dashboard_test -p theiagen-prscitrust -w PR-SCITRUST-COVID -q pr_sci_trust_dashboard.test -m true -i " + newFile}
                   volumes:
                     - gcs:
                         remotePath: "pr-sci-trust-dashboard"
