@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import argparse
 import pandas as pd
+
 
 #argpase used to take in command line arguments
 def get_opts():
@@ -22,6 +24,7 @@ meta_df1 = pd.read_csv(meta_tsv1, delimiter='\t', dtype={'strain': str, 'age': s
 table_name = "entity:" + arguments.table_name + "_id"
 
 # input_headers = meta_df1.columns.values
+output_headers = [table_name, 'age', 'authors', 'country', 'country_exposure', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pango_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade', 'county', 'collection_date']
 output_headers = [table_name, 'age', 'authors', 'country', 'country_exposure', 'date_submitted', 'division', 'division_exposure', 'GISAID_clade', 'gisaid_epi_isl', 'host', 'location', 'originating_lab', 'pango_lineage', 'region', 'region_exposure', 'segment', 'sex', 'submitting_lab', 'url', 'virus', 'gisaid_accession', 'nextclade_clade', 'gisaid_clade', 'county', 'collection_date']
 
 # rename headers
@@ -50,6 +53,8 @@ meta_df1.replace("\n", value=' ', regex=True, inplace=True)
 # replace all forward slashes in first  with underscores
 meta_df1[table_name].replace('/', value='_', regex=True, inplace=True)
 meta_df1[table_name].replace('\|', value='_', regex=True, inplace=True) # prevent accidental piping
+meta_df1[table_name].replace('/', value='_', regex=True, inplace=True)
+meta_df1[table_name].replace('\|', value='_', regex=True, inplace=True) # prevent accidental piping
 
 # replace all commas with spaces
 meta_df1.replace(',', value=' ', regex=True, inplace=True)
@@ -58,6 +63,7 @@ meta_df1.replace(',', value=' ', regex=True, inplace=True)
 meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
 
 # replace all '_' with '-' in collection date cols
+meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
 meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
 meta_df1['date_submitted'].replace('_', value='-', regex=True, inplace=True)
 
@@ -73,6 +79,7 @@ meta_df1['age'].replace(age_range_replace_dict, inplace=True)
 
 # replace all NA values with numerical value 151
 meta_df1['age'] = pd.to_numeric(meta_df1['age'], errors ='coerce').fillna(151).astype('int')
+meta_df1['age'] = pd.to_numeric(meta_df1['age'], errors ='coerce').fillna(151).astype('int')
 
 # set bin boundaries
 bins1 = [0, 4, 17, 49, 64, 123, 1000000]
@@ -85,11 +92,14 @@ meta_df1['age_bins'] = pd.cut(x=meta_df1['age'], bins=bins1, labels=labels1, inc
 
 # replace all values >151 with unknown
 meta_df1['age'].replace(151, 'unknown', inplace=True)
+# replace all values >151 with unknown
+meta_df1['age'].replace(151, 'unknown', inplace=True)
 
 # replace all NA values with unknown
 meta_df1['age_bins'] = meta_df1['age_bins'].fillna('unknown')
 
 # remove duplicate lines, keeping the first values
+meta_df1.drop_duplicates(subset=table_name, keep='first', inplace=True)
 meta_df1.drop_duplicates(subset=table_name, keep='first', inplace=True)
 
 # Get outfile name
