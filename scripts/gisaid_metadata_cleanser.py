@@ -9,7 +9,6 @@ def get_opts():
     p.add_argument('tsv_meta_file', help='tsv metadata file input')
     p.add_argument('out_file', help='Output file: required, must be a string.')
     p.add_argument('table_name', help='Terra table name: required, must be a string; do not include entity: or _id.')
-   # p.add_argument('--puertorico', action='store_true', help='Perform Puerto Rico-specific actions')
     p.add_argument('puertorico', help='Perform Puerto Rico-specific actions')
     args = p.parse_args()
     return args
