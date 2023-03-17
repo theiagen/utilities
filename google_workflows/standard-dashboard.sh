@@ -27,7 +27,7 @@ Usage: ./standard_dashboard.sh
 	[ -p | --terra-project ] the project hosting the terra workspace ("cdc-terra-la-phl")
 	[ -w | --terra-workspace ] the terra workspace ("CDC-COVID-LA-Dashboard-Test")
 	[ -q | --big-query-table-name ] the name of the big query table to upload to ("sars_cov_2_dashboard.workflow_la_state_gisaid_specimens_test")
-	[ -m | --metadata-parameters ] (optional) any additional metadata cleanser parameter (enclose in quotes). available options: "--puertorico"
+	[ -m | --metadata-parameters ] apply Puerto Rico-specific changes. available options: true or false
 	[ -i | --input-tar-file ] the tar file given to the script by the Google Trigger
 
 Happy dashboarding!
@@ -35,13 +35,13 @@ EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m::i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,metadata-parameters::,input-tar-file:" -a -- "$@")
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,metadata-parameters:,input-tar-file:" -a -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
 
 while true; do
   case "$1" in
-	-v|--version)
+    -v|--version)
       echo $VERSION; exit 0;;
     -h|--help)
       showHelp; exit 0;;
@@ -68,14 +68,11 @@ while true; do
     -q|--big-query-table-name)
       big_query_table_name=$2; shift 2;;
     -m|--metadata-parameters)
-      case "$2" in
-        "") metadata_cleanser_parameters=''; shift 2;;
-        *) metadata_cleanser_parameters=$2; shift 2;;
-      esac ;;
-	-i|--input-tar-file)
-	  input_tar_file=$2; shift 2;;
+      puerto_rico=$2; shift 2;;
+    -i|--input-tar-file)
+      input_tar_file=$2; shift 2;;
     --) shift; break ;;
-    *) echo "Unexpected option: $1 -- this should not happen."; exit 1;;
+      *) echo "Unexpected option: $1 -- this should not happen."; exit 1;;
   esac
 done
 
@@ -96,6 +93,7 @@ make_directory() {
 date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 
 # Create output subdirectories if they do not yet exist:
+make_directory ${gisaid_backup_dir}/
 make_directory ${output_dir}/automation_logs
 make_directory ${output_dir}/gisaid_processing 
 make_directory ${output_dir}/backup_jsons
@@ -148,7 +146,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Capture, reformat, and prune GISAID metadata
   \n
-  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${metadata_cleanser_parameters}
+  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${puerto_rico}
   \n
   \n
   # Import formatted data table into Terra

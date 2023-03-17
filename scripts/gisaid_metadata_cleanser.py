@@ -9,7 +9,7 @@ def get_opts():
     p.add_argument('tsv_meta_file', help='tsv metadata file input')
     p.add_argument('out_file', help='Output file: required, must be a string.')
     p.add_argument('table_name', help='Terra table name: required, must be a string; do not include entity: or _id.')
-    p.add_argument('--puertorico', action='store_true', help='Perform Puerto Rico-specific actions')
+    p.add_argument('puertorico', help='Perform Puerto Rico-specific actions')
     args = p.parse_args()
     return args
 arguments = get_opts()
@@ -17,7 +17,6 @@ arguments = get_opts()
 # read in metadata tsv file
 meta_tsv1 = arguments.tsv_meta_file
 meta_df1 = pd.read_csv(meta_tsv1, delimiter='\t', dtype={'strain': str, 'age': str})
-
 
 table_name = "entity:" + arguments.table_name + "_id"
 
@@ -28,11 +27,11 @@ output_headers = [table_name, 'age', 'authors', 'country', 'country_exposure', '
 meta_df1.rename(columns={'strain': table_name, 'gisaid_epi_isl': 'gisaid_accession', 'Nextstrain_clade': 'nextclade_clade', 'vendor': 'sequencing_lab', 'location': 'county', 'GISAID_clade': 'gisaid_clade', 'pangolin_lineage': 'pango_lineage', 'date': 'collection_date'}, inplace=True)
 
 # perform PR specific actions:
-if arguments.puertorico:
+if arguments.puertorico == "true":
     # drop pangolin lineage column
     meta_df1.drop('pango_lineage', axis='columns', inplace=True)
     # remove any samples uploaded by PR
-    meta_df1[~meta_df1[table_name].str.contains("PR-CVL")]
+    meta_df1 = meta_df1[~meta_df1[table_name].str.contains("PR-CVL")]
 
 # drop extraneous cols
 drop_list = []
