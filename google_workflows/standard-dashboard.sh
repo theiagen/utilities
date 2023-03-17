@@ -96,6 +96,7 @@ make_directory() {
 date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 
 # Create output subdirectories if they do not yet exist:
+make_directory ${gisaid_backup_dir}/
 make_directory ${output_dir}/automation_logs
 make_directory ${output_dir}/gisaid_processing 
 make_directory ${output_dir}/backup_jsons
