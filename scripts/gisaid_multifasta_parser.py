@@ -8,13 +8,16 @@ import sys
 
 # two positional inputs
 def get_opts():
-	p = argparse.ArgumentParser(description = 'This program will parse the multifasta file provided in the gisaid tarball download of augur input files', usage='[-h] gisaid_multifasta_parser.py <gisaid_multifasta> <output_dir>')
-	p.add_argument('gisaid_multifasta_file',
-				help='multifasta input file: Enter a multifasta file containing DNA sequence.')
-	p.add_argument('output_dir',
-				help='Location of output directory.')
-	args = p.parse_args()
-	return args
+    p = argparse.ArgumentParser(description = 'This program will parse the multifasta file provided in the gisaid tarball download of augur input files', usage='[-h] gisaid_multifasta_parser.py <gisaid_multifasta> <output_dir>')
+    p.add_argument('gisaid_multifasta_file',
+                help='multifasta input file: Enter a multifasta file containing DNA sequence.')
+    p.add_argument('output_dir',
+                help='Location of output directory.')
+    p.add_argument('puertorico',
+                help='perform Puerto Rico-specific functions.')
+    # add PR-specific removal of PR-CVL data
+    args = p.parse_args()
+    return args
 arguments = get_opts()
 
 fasta1 = arguments.gisaid_multifasta_file
@@ -27,8 +30,14 @@ seqs1 = pyfaidx.Fasta(fasta1, duplicate_action="first")
 original_seq_names_list = []
 seqs_list = []
 for i in seqs1.keys():
-    original_seq_names_list.append(i)
-    seqs_list.append(seqs1[i][:].seq)
+    if (arguments.puertorico == "true"):
+        if ("PR-CVL" not in i): # remove any PR-CVL data
+            original_seq_names_list.append(i)
+            seqs_list.append(seqs1[i][:].seq)
+    else:
+        original_seq_names_list.append(i)
+        seqs_list.append(seqs1[i][:].seq)
+
 
 # remove slashes and create new list of names
 no_slashes_seq_names_list = []
