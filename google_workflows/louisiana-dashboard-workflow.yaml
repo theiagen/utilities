@@ -35,7 +35,7 @@ main:
                           - "/mnt/disks/louisiana-bucket/.config:/.config"
                         commands:
                           - "-c"
-                          - ${ "bash /data/standard-dashboard.sh -d gs://louisiana-dashboard-processing -j gisaid_louisiana_data.json -s /data/bq_schema/schema_LA_v6.json -b /data/input_gisaid -o /data -t gs://louisiana-gisaid-data -g gs://fc-6c0c9352-49f4-4673-a41c-71baddb16f42 -r gisaid_louisiana_data -p cdc-terra-la-phl -w CDC-COVID-LA-Dashboard-Test -q sars_cov_2_dashboard.workflow_test -i " + newFile}
+                          - ${ "bash /data/standard-dashboard.sh -d gs://louisiana-dashboard-processing -j gisaid_louisiana_data.json -s /data/bq_schema/schema_LA_v6.json -b /data/input_gisaid -o /data -t gs://louisiana-gisaid-data -g gs://fc-6c0c9352-49f4-4673-a41c-71baddb16f42 -r gisaid_louisiana_data -p cdc-terra-la-phl -w CDC-COVID-LA-Dashboard-Test -q sars_cov_2_dashboard.workflow_test -m false -i " + newFile}
                   volumes:
                     - gcs:
                         remotePath: "louisiana-dashboard-processing"
