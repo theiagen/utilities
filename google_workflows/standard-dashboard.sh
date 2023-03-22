@@ -27,7 +27,7 @@ Usage: ./standard_dashboard.sh
 	[ -p | --terra-project ] the project hosting the terra workspace ("cdc-terra-la-phl")
 	[ -w | --terra-workspace ] the terra workspace ("CDC-COVID-LA-Dashboard-Test")
 	[ -q | --big-query-table-name ] the name of the big query table to upload to ("sars_cov_2_dashboard.workflow_la_state_gisaid_specimens_test")
-	[ -m | --metadata-parameters ] apply Puerto Rico-specific changes. available options: true or false
+	[ -m | --puerto-rico ] apply Puerto Rico-specific changes. available options: true or false
 	[ -i | --input-tar-file ] the tar file given to the script by the Google Trigger
 
 Happy dashboarding!
@@ -35,7 +35,7 @@ EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,metadata-parameters:,input-tar-file:" -a -- "$@")
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:" -a -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
 
@@ -67,7 +67,7 @@ while true; do
       terra_workspace=$2; shift 2;;
     -q|--big-query-table-name)
       big_query_table_name=$2; shift 2;;
-    -m|--metadata-parameters)
+    -m|--puerto-rico)
       puerto_rico=$2; shift 2;;
     -i|--input-tar-file)
       input_tar_file=$2; shift 2;;
@@ -90,7 +90,7 @@ make_directory() {
 ### BEGIN DASHBOARD FUNCTION
 
 # Set date tag
-date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
+date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")_${RANDOM}
 
 # Create output subdirectories if they do not yet exist:
 make_directory ${gisaid_backup_dir}/
@@ -126,12 +126,12 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   mkdir ${gisaid_dir}
   \n
-  tar -xf ${gisaid_backup_dir}/$filename -C ${gisaid_dir}
+  tar -xf ${gisaid_backup_dir}/${filename} -C ${gisaid_dir}
   \n
   \n
   # Create individual fasta files from GISAID multifasta
   \n
-  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir}
+  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico}
   \n
   \n
   # Deposit individual fasta files into Terra GCP bucket
@@ -141,7 +141,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create and import Terra Data table containing GCP pointers to deposited assemblies
   \n
-  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I) ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" $(date -I)
+  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I) ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
   \n
   \n
   # Capture, reformat, and prune GISAID metadata
