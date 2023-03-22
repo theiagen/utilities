@@ -28,7 +28,7 @@ main:
               - taskSpec:
                   runnables:
                     - container:
-                        imageUri: "quay.io/theiagen/terra-tools:0.2.1"
+                        imageUri: "quay.io/theiagen/terra-tools:0.2.2"
                         entrypoint: "/bin/bash"
                         volumes:
                           - "/mnt/disks/prst-bucket:/data"
