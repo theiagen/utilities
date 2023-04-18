@@ -45,7 +45,7 @@ find /data -maxdepth 1  -not -path '*/.*' -type d -newermt '2023-04-17' | tail -
 concatenate-barcoded-nanopore-reads.sh ${RUNDIR} ${RUNDIR}/concatenated-fastqs
 
 # gsutil cp’s data to Terra workspace GCP bucket
-# TODO - set SEQ_RUN_ID variable somewhere before this
+# TODO - set SEQ_RUN_ID variable somewhere before this. Perhaps just use RUNDIR if that matches the seq run ID
 gsutil -m cp ${RUNDIR}/concatenated-fastqs/*.fastq.gz gs://${TERRA_DATA_UPLOAD_GSURI}/00000-${SEQ_RUN_ID}/
 
 # create list of FASTQ GSURIs
@@ -61,7 +61,7 @@ echo -e "entity:${ROOT_ENTITY}_id\treads\tupload_date\trun_id" > ${LOCAL_ROOT_DI
 # 2nd step
 # add row to TSV for every FASTQ file
 cat ${RUNDIR}/concatenated-fastqs/FASTQ_GS_URIS.TXT | while read FASTQ_GSURI; do
-  echo -e "${SAMPLE_ID}\t${FASTQ_GSURI}\t$(date -I)\t${RUNDIR}"
+  echo -e "${SAMPLE_ID}\t${FASTQ_GSURI}\t$(date -I)\t${RUNDIR}" >>${LOCAL_ROOT_DIR}/${TODAY_DATE}/terra_table_${RUNDIR}_for_upload.tsv
 
 # 3rd step
 # import TSV into Terra workspace
