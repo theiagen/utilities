@@ -47,7 +47,7 @@ if __name__ == '__main__':
                         help='The directory to output files to. (Default: ./)')
     parser.add_argument('--prefix', metavar="STRING", type=str, default='comparison',
                         help='The prefix to use for output files (Default: comparison)')
-    parser.add_argument('--compcols', metavar="TSV", type=list, default='comparison',
+    parser.add_argument('--compcols', metavar="TSV", type=str, default='read1',
                         help='The list of columns to be compared')
 
     if len(sys.argv) == 1:
@@ -91,7 +91,10 @@ if __name__ == '__main__':
     df2.drop(drop_list2, axis='columns', inplace=True)
 
     if drop_list1 != drop_list2:
-        print('Datatables have different sets of extraneous columns.')
+        print('Differences in the column headers of the two datatables have been detected.')
+        s2 = set(drop_list2)
+        new_cols = [x for x in drop_list1 if x not in s2]
+        print(new_cols, sep="\n")
     else:
         print('Datatables have the same set of extraneous columns.')
 
