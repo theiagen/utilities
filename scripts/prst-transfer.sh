@@ -19,7 +19,6 @@ make_directory() {
 # set variables we will re-use
 # PRST Terra workspace google bucket
 TERRA_DATA_UPLOAD_GSURI="fc-b4d25547-715f-4139-8276-a2aff0ae00c1/uploads"
-# DOUBLE CHECK THIS STARTING POINT, WILL NEED TO CREATE DIRECTORY
 LOCAL_ROOT_DIR="/data/cronjob/"
 ROOT_ENTITY="ont_specimen"
 
@@ -37,8 +36,33 @@ echo "TODAY_DATE set to: " $TODAY_DATE
 # detect when a new run is completed: perhaps based on the presence of a new subdirectory named after the sequencing run ID AND the presence of a `sequencing_summary.txt` file produced by Guppy to indicate that basecalling has completed
 
 # find command to list all directories within /data that are not hidden and those that were created after 2023-04-17
-# tail is to remove the first in list, which would be just /data
-find /data -maxdepth 1  -not -path '*/.*' -type d -newermt '2023-04-17' | tail -n+2 >LIST-OF-RUNDIRS.TXT
+# tail command is to remove the first in list, which would be just /data
+# sed command is to remove "/data/" from beginning of output
+find /data -maxdepth 1  -not -path '*/.*' -type d -newermt '2023-04-17' | tail -n+2 >${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT
+
+# download list of run_id 's from Terra, create a text file
+# download entire prst ont_specimen Terra table to determine which runs have not been uploaded yet
+docker run -e TODAY_DATE -u $(id -u):$(id -g) --rm -v ${LOCAL_ROOT_DIR}/${TODAY_DATE}:/data -v "$HOME"/.config:/.config quay.io/theiagen/terra-tools:0.2.2 bash -c "cd data; python3 /scripts/export_large_tsv/export_large_tsv.py --project theiagen-prscitrust --workspace PR-SCITRUST-COVID --entity_type ont_specimen --attribute_list run_id --tsv_filename /data/runIDs-in-terra-${TODAY_DATE}.tsv"
+
+# get list of unique run ID's based on table downloaded from Terra
+# tail +3 is to remove blank line and remove line with "run_id"
+cut -f 2 ${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.tsv | sort | uniq | tail +3 >${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.unique.txt 
+
+# compare our list of rundirs that are newer than 2023-04-17
+# elif the rundir is NOT PRESENT, then upload the data to Terra
+cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
+  # set RUN_ID variable, strip off the /data/ in the beginning, use this variable going forward
+  RUN_ID=$(echo $RUNDIR | sed 's|/data/||g'
+  echo "RUN_ID is set to:" $RUN_ID
+  
+  # if the rundir IS PRESENT in list of run_id's from Terra, then skip
+  
+  
+  
+  # elif the rundir is NOT PRESENT, then upload the data to Terra
+  
+done 
+
 
 # run the concatenate-barcoded-nanopore-reads.sh script on the directory of pass/ FASTQ files. If I recall correctly, it has subdirectories for each barcode
 # TODO need to double check the output directory structure from MinKNOW/Guppy
