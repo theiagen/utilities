@@ -69,13 +69,17 @@ if __name__ == '__main__':
     # Read in TSVs
     df1, df1_c1_name = read_tsv(args.tsv1)
     df2, df2_c1_name = read_tsv(args.tsv2)
-
+    print('df1')
+    print(df1)
+    print('df2')
+    print(df2)
     # Read in list of cols
     df3, comp_columns = read_tsv(args.compcols)
 
     print(df1.columns)
     # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
     keepers_list = comp_columns
+    print('keepers_List')
     print(keepers_list)
     # Old list of comparison columns: ['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
     
@@ -100,9 +104,14 @@ if __name__ == '__main__':
         print(new_cols, sep="\n")
     else:
         print('Datatables have the same set of extraneous columns.')
+    print(df1.columns)
+    print(df2.columns)
 
+    # Pull table names
+    root_ent1 = str(df1.columns[0])
+    root_ent2 = str(df2.columns[0])
     # Perform comparison
-    df_comp1 = df1.compare(df2, align_axis=1, keep_shape=True, keep_equal=False)
+    df_comp1 = df1.compare(df2, align_axis=1, keep_shape=True, keep_equal=False, result_names=(root_ent1, root_ent2))
     # Count non-NA values in each columns
     val_cnts = df_comp1.count()
     df_val_cnts=val_cnts.to_frame()
