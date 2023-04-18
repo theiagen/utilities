@@ -12,6 +12,7 @@ options:
   -h, --help       show this help message and exit
   --outdir STRING  The directory to output files to. (Default: ./)
   --prefix STRING  The prefix to use for output files (Default: comparison)
+  --compcols TSV   The list of columns to be compared
 """
 import pandas as pd
 
@@ -46,6 +47,8 @@ if __name__ == '__main__':
                         help='The directory to output files to. (Default: ./)')
     parser.add_argument('--prefix', metavar="STRING", type=str, default='comparison',
                         help='The prefix to use for output files (Default: comparison)')
+    parser.add_argument('--compcols', metavar="TSV", type=list, default='comparison',
+                        help='The list of columns to be compared')
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -67,9 +70,13 @@ if __name__ == '__main__':
     df1, df1_c1_name = read_tsv(args.tsv1)
     df2, df2_c1_name = read_tsv(args.tsv2)
 
+    # Read in list of cols
+    comp_columns = read_tsv(args.compcols)
+
     print(df1.columns)
     # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
-    keepers_list=['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+    keepers_list = comp_columns
+    # Old list of comparison columns: ['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
     drop_list1 = []
     drop_list2 = []
 
