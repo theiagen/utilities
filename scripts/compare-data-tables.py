@@ -71,15 +71,18 @@ if __name__ == '__main__':
     df2, df2_c1_name = read_tsv(args.tsv2)
 
     # Read in list of cols
-    comp_columns = read_tsv(args.compcols)
+    df3, comp_columns = read_tsv(args.compcols)
 
     print(df1.columns)
     # Drop columns that will almost always differ, keep only the columns that matter for validating the workflow
     keepers_list = comp_columns
+    print(keepers_list)
     # Old list of comparison columns: ['assembly_length_unambiguous','assembly_mean_coverage','assembly_method','kraken_human','kraken_human_dehosted','kraken_sc2','kraken_sc2_dehosted','meanbaseq_trim','meanmapq_trim','nextclade_aa_dels','nextclade_aa_subs','nextclade_clade','number_Degenerate','number_N','number_Total','pango_lineage','pangolin_conflicts','pangolin_notes','percent_reference_coverage','primer_bed_name','seq_platform','vadr_num_alerts','validation_set','primer_trimmed_read_percent']
+    
+    # Make blank drop lists to be backfilled
     drop_list1 = []
     drop_list2 = []
-
+    # Add all columns not in keepers list to drop lists
     for i in df1.columns:
     	if i not in keepers_list:
     		drop_list1.append(i)
@@ -89,7 +92,7 @@ if __name__ == '__main__':
     	if j not in keepers_list:
     		drop_list2.append(j)
     df2.drop(drop_list2, axis='columns', inplace=True)
-
+    # Compare drop lists, if diffs exists print them
     if drop_list1 != drop_list2:
         print('Differences in the column headers of the two datatables have been detected.')
         s2 = set(drop_list2)
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     df_val_cnts=val_cnts.to_frame()
     df_val_cnts.columns = ['Number of Diffs']
     print(df_val_cnts)
-    # Replace NAs with "EXACT_MATCH"
+    # Replace NAs with "-"
     df_comp1.fillna(value='-', method=None, axis=None, inplace=True, limit=None, downcast=None)
 
     count_dict={}
