@@ -46,8 +46,9 @@ find /data -maxdepth 1  -not -path '*/.*' -type d -newermt '2023-04-17' | tail -
 docker run -e TODAY_DATE -u $(id -u):$(id -g) --rm -v ${LOCAL_ROOT_DIR}/${TODAY_DATE}:/data -v "$HOME"/.config:/.config quay.io/theiagen/terra-tools:0.2.2 bash -c "cd /data; python3 /scripts/export_large_tsv/export_large_tsv.py --project theiagen-prscitrust --workspace PR-SCITRUST-COVID --entity_type ont_specimen --attribute_list run_id --tsv_filename /data/runIDs-in-terra-${TODAY_DATE}.tsv"
 
 # get list of unique run ID's based on table downloaded from Terra
-# tail +3 is to remove blank line and remove line with "run_id"
-cut -f 2 ${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.tsv | sort | uniq | tail +3 >${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.unique.txt 
+# sed is to remove line with "run_id" column header
+# tail +2 is to remove blank line at top of list (blank line is caused by samples in data table without a run_id)
+cut -f 2 ${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.tsv | sed 's|run_id||g' sort | uniq | tail +2 >${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.unique.txt 
 
 # compare our list of rundirs that are newer than 2023-04-17
 # elif the rundir is NOT PRESENT, then upload the data to Terra
@@ -59,10 +60,11 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
   RUN_ID=$(echo $RUNDIR | sed 's|/data/||g')
   echo "RUN_ID is set to:" $RUN_ID
   
-  # if the rundir IS PRESENT in list of run_id's from Terra, then skip
+  # if the run id IS PRESENT in list of run_id's from Terra, then skip
   if [ $(grep ${RUN_ID} ${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.unique.txt | wc -l ) -gt 0 ] ; then
       echo "RUN_ID ${RUN_ID} was found in the list of RUN ID's present in Terra, skipping upload..."
-      break
+      # continue allows the script to run the remaining commands in the while loop (now that we have confirmed the existence of the sequencing_summary.txt file
+      continue
   # else if the rundir is NOT PRESENT in list of run_id's on Terra, then prepare data and upload
   elif [ $(grep ${RUN_ID} ${LOCAL_ROOT_DIR}/${TODAY_DATE}/runIDs-in-terra-${TODAY_DATE}.unique.txt | wc -l ) -eq 0 ] ; then
       echo "RUN_ID ${RUN_ID} was NOT found in the list of RUN ID's present in Terra."
@@ -71,18 +73,17 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
       # check to see if a sequencing_summary.txt file exists within the rundir.
       # if the sequencing_summary.txt file does not exist, then exit the loop. This means either basecalling has not finished OR this directory is not a sequencing run directory
       if [ $(find ${RUNDIR} -type f -iname "sequencing_summary_*.txt" | wc -l) -eq 0 ]; then
-         echo "sequencing_summary.txt file not found, breaking the loop now..."
-	 # break sends the script back to the beginning of the while loop
-         break
+         echo "sequencing_summary.txt file not found, continuing on to next iteration of the loop now..."
+        # continue sends the script back to the beginning of the while loop
+        continue
       # if the sequencing_summary.txt file exists, then continue
       elif [ $(find ${RUNDIR} -type f -iname "sequencing_summary_*.txt" | wc -l) -gt 0 ] ; then 
-	 echo "sequencing_summary.txt file WAS found, continuing on...."
-	 # continue allows the script to run the remaining commands in the while loop (now that we have confirmed the existence of the sequencing_summary.txt file
-	 #continue
-      # else - any other outcomes, break the loop 
+        echo "sequencing_summary.txt file WAS found, preparing files for upload to Terra now..."
+      
+      # else - any other outcomes, continue to next iteration of the loop 
       else
-        echo "Not sure if a sequencing_summary.txt file was found or not, breaking loop now..."
-	break
+        echo "Not sure if a sequencing_summary.txt file was found or not, continuing to next iteration of loop now..."
+        continue
       fi
 
       # run the concatenate-barcoded-nanopore-reads.sh script on the directory of fastq_pass/ FASTQ files
@@ -106,7 +107,7 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
       # using a "while" loop to loop through all FASTQ files uploaded to Terra
       cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/FASTQ_GS_URIS.TXT | while read FASTQ_GSURI; do
       echo -e "CVL_sample_identifier\t${FASTQ_GSURI}\t$(date -I)\t${RUN_ID}" >>${LOCAL_ROOT_DIR}/${TODAY_DATE}/00_terra_table_${RUN_ID}_for_upload.tsv
-	echo "finished adding rows to the Terra metadata TSV"
+      echo "finished adding rows to the Terra metadata TSV"
       done
 
       # copy the Terra metadata TSV to the Terra workspace google storage bucket (specifically in RUN_ID subdirectory)
@@ -114,6 +115,5 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
       gsutil cp ${LOCAL_ROOT_DIR}/${TODAY_DATE}/00_terra_table_${RUN_ID}_for_upload.tsv gs://${TERRA_DATA_UPLOAD_GSURI}/00000-${RUN_ID}/
   fi
 done 
-
-echo "END"
 echo
+echo "END"
