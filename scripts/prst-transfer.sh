@@ -72,12 +72,12 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
 
       # check to see if a sequencing_summary.txt file exists within the rundir.
       # if the sequencing_summary.txt file does not exist, then exit the loop. This means either basecalling has not finished OR this directory is not a sequencing run directory
-      if [ $(find ${RUNDIR} -type f -iname "sequencing_summary_*.txt" | wc -l) -eq 0 ]; then
+      if [ $(find ${RUNDIR} -maxdepth 3 -type f -iname "sequencing_summary_*.txt" | wc -l) -eq 0 ]; then
          echo "sequencing_summary.txt file not found, continuing on to next iteration of the loop now..."
         # continue sends the script back to the beginning of the while loop
         continue
       # if the sequencing_summary.txt file exists, then continue
-      elif [ $(find ${RUNDIR} -type f -iname "sequencing_summary_*.txt" | wc -l) -gt 0 ] ; then 
+      elif [ $(find ${RUNDIR} -maxdepth 3 -type f -iname "sequencing_summary_*.txt" | wc -l) -gt 0 ] ; then 
         echo "sequencing_summary.txt file WAS found, preparing files for upload to Terra now..."
       
       # else - any other outcomes, continue to next iteration of the loop 
