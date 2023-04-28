@@ -1,0 +1,61 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - jobId: ${ "la-county-gisaid-" + string(int(sys.now()))}
+          - newFile: ${args.data.name}
+    - logCreateBatchJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job " + jobId}
+    - createAndRunBatchJob:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${jobId}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "quay.io/theiagen/terra-tools:0.2.2"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/la-county-bucket:/data"
+                          - "/mnt/disks/la-county-bucket/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash /data/standard-dashboard.LA.sh -d gs://la-county-gisaid-processing -j gisaid_la_county_data.json -s /data/bq_schema/schema_LA_v6.json -b /data/input_gisaid -o /data -t gs://la-county-gisaid-data-upload -g gs://fc-5c02faaa-dd41-4502-984b-ff6d6af05530 -r gisaid_specimen -p cdph-terrabio-taborda-manual -w California_SARS-CoV-2_Genomic_Epidemiology_LosAngeles -q a -m true -i " + newFile}
+                  volumes:
+                    - gcs:
+                        remotePath: "la-county-gisaid-processing"
+                      mountPath: "/mnt/disks/la-county-bucket"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: createAndRunBatchJobResponse
+    - getJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + jobId}
+          auth:
+            type: OAuth2
+        result: getJobResult
+    - logState:
+        call: sys.log
+        args:
+          data: ${ "Current job state " + getJobResult.body.status.state}
+    - returnResult:
+        return:
+          jobId: ${jobId}
+          status: "OK"
