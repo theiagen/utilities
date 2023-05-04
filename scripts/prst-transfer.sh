@@ -95,7 +95,7 @@ cat ${LOCAL_ROOT_DIR}/${TODAY_DATE}/LIST-OF-RUNDIRS.TXT | while read RUNDIR; do
       gsutil -m cp ${RUNDIR}/concatenated-fastqs-for-terra-upload/*.fastq.gz gs://${TERRA_DATA_UPLOAD_GSURI}/00000-${RUN_ID}
 
       # create list of FASTQ GSURIs
-      gsutil -m ls gs://${TERRA_DATA_UPLOAD_GSURI}/00000-${RUN_ID}/ >${LOCAL_ROOT_DIR}/${TODAY_DATE}/FASTQ_GS_URIS.TXT
+      gsutil -m ls gs://${TERRA_DATA_UPLOAD_GSURI}/00000-${RUN_ID}/*.fastq.gz >${LOCAL_ROOT_DIR}/${TODAY_DATE}/FASTQ_GS_URIS.TXT
 
       # Create Terra metadata TSV based on new GS URIs of FASTQ files & sequencing run ID
       # 1st step insert headers into TSV
