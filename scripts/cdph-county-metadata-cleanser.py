@@ -30,7 +30,8 @@ output_headers = ['entity:county_specimen_updated_id', 'assembly_mean_coverage',
 meta_df1_sorted = meta_df1.sort_values(by=['specimen_accession_number','gisaid_accession','percent_reference_coverage'], ascending=True)
 print(meta_df1_sorted)
 
-meta_df1_sorted_dups_removed = meta_df1_sorted.drop_duplicates(subset=['specimen_accession_number'],keep='last',ignore_index=True)
+# remove values that have the same specimen_accession_number *and* sequencing_lab
+meta_df1_sorted_dups_removed = meta_df1_sorted.drop_duplicates(subset=['sequencing_lab', 'specimen_accession_number'],keep='last',ignore_index=True)
 print(meta_df1_sorted_dups_removed)
 
 # rename sample ID header
