@@ -2,6 +2,7 @@
 
 import argparse
 import pandas as pd
+import numpy as np
 
 # argpase used to take in command line arguments
 def get_opts():
@@ -14,47 +15,27 @@ arguments = get_opts()
 
 # read in metadata tsv file
 meta_tsv1 = arguments.tsv_meta_file
-meta_df1 = pd.read_csv(meta_tsv1, delimiter='\t', na_filter=False)
+meta_df1 = pd.read_csv(meta_tsv1, delimiter='\t')
 
-# input_headers = meta_df1.columns.values
-output_headers = ['entity:county_specimen_updated_id', 'assembly_mean_coverage', 'gisaid_accession', 'percent_reference_coverage', 'sequencing_lab', 'specimen_accession_number']
+# replacing blank values with nan
+meta_df1_nan_added = meta_df1.replace(r'^\s+$', np.nan, regex=True)
+print(meta_df1_nan_added)
 
-# remove duplicate lines, keeping the first values
-#meta_df1.drop_duplicates(subset=table_name, keep='first', inplace=True)
 
-# get list of duplicate specimen_accession_numbers (subset across whole set). keep = false
-#duplicated_specimens = meta_df1.duplicated(subset=['specimen_accession_number'], keep=False)
-
-#duplicated_specimens.sort_values(by=['gisaid_accession','percent_reference_coverage'])
-
-meta_df1_sorted = meta_df1.sort_values(by=['specimen_accession_number','gisaid_accession','percent_reference_coverage'], ascending=True)
+# sort on these 3 columns, in this order
+# NaN cells are first so that larger %ref coverage values are last in the list
+meta_df1_sorted = meta_df1_nan_added.sort_values(by=['specimen_accession_number','gisaid_accession','percent_reference_coverage'], ascending=True, na_position='first')
 print(meta_df1_sorted)
 
-# remove values that have the same specimen_accession_number *and* sequencing_lab
-meta_df1_sorted_dups_removed = meta_df1_sorted.drop_duplicates(subset=['sequencing_lab', 'specimen_accession_number'],keep='last',ignore_index=True)
+# step to remove SOME of the duplicates
+# duplicates where sequencing_lab and specimen_accession_number is the same - remove these
+# do NOT remove duplicate specimen_accession_numbers if they come from different labs
+# ignore the NaN values, do not treat NaNs as duplicates
+meta_df1_sorted_dups_removed = meta_df1_sorted[(~meta_df1_sorted.duplicated(subset=[ 'sequencing_lab', 'specimen_accession_number'], keep='last')) | meta_df1_sorted['specimen_accession_number'].isna()]
 print(meta_df1_sorted_dups_removed)
-
-# rename sample ID header
-#meta_df1_sorted_dups_removed.rename(columns={'entity:county_specimen_updated_id': 'county_specimen_updated_id'}, inplace=True)
-
-
-# get a list of specimen_accession_numbers that are duplicated
-
-# for each of those numbers, do the following:
-### look for gisaid_accession, if only one exists. take that accession & sample
-### if 2 or more gisaid_accessions exist, what do????
-### if NO gisaid_accessions exist, enter new conditional
-###### keep/retain sample with highest percent_ref_coverage, delete/toss others with lower coverage
-
-
-
-
 
 # Get outfile name
 out_file_name = arguments.out_file
 
 # Print to tsv file
 meta_file_out = meta_df1_sorted_dups_removed.to_csv(out_file_name, sep="\t", index=False)
-
-#print to stdout
-#print(meta_df1)
