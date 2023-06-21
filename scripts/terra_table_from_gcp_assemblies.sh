@@ -52,14 +52,33 @@ date_tag=$(date +"%Y-%m-%d-%Hh-%Mm-%Ss")
 # Capture samplenames from existing assembleis in given gcp_uri
 assembly_files=$(gsutil ls ${gcp_uri}*.fasta | awk -F'/' '{ print $NF }')
 
+echo '$assembly_files is set to:' $assembly_files
+
 # Create Terra table with gcp pointers
-echo -e "entity:${root_entity}_id\tassembly_fasta\tterra_upload_set" > ${output_dir}/assembly_terra_table_${date_tag}.tsv
+echo -e "entity:${root_entity}_id\tassembly_fasta\tterra_upload_set\tsequencing_lab" > ${output_dir}/assembly_terra_table_${date_tag}.tsv
 
 for assembly in $assembly_files; do
   # capture samplename from assembly filename
   samplename=$(echo ${assembly} | awk -F"${alt_delimiter}|.fasta" '{ print $1 }')
+  echo '$samplename is set to:' $samplename
+  # if samplename contains 'LC', set sequencing_lab column equal to 'Laboratory Corporation of America'
+  if [[ "${samplename}" == *"LC"* ]]; then
+    echo 'samplename contains the substring "LC", setting "sequencing_lab" equal to "Laboratory Corporation of America"'
+    sequencing_lab="Laboratory Corporation of America"
+  fi
+  # if samplename contains 'IBX', set sequencing_lab column equal to "Infinity Biologix"
+  if [[ "${samplename}" == *"IBX"* ]]; then
+    echo 'samplename contains the substring "IBX", setting "sequencing_lab" equal to "Infinity Biologix"'
+    sequencing_lab="Infinity Biologix"
+  fi
+  # FG for Fulgent Genetics
+  if [[ "${samplename}" == *"FG"* ]]; then
+    echo 'samplename contains the substring "FG", setting "sequencing_lab" equal to "Fulgent Genetics"'
+    sequencing_lab="Fulgent Genetics"
+  fi
+
   # write samplename, gcp pointer, and terra_upload_set to terra data table
-  echo -e "${samplename}\t${gcp_uri}${assembly}\t${terra_upload_set}" >> ${output_dir}/assembly_terra_table_${date_tag}.tsv
+  echo -e "${samplename}\t${gcp_uri}${assembly}\t${terra_upload_set}\t${sequencing_lab}" >> ${output_dir}/assembly_terra_table_${date_tag}.tsv
 done
 
 # remove duplicates from tsv if samplename not unique
