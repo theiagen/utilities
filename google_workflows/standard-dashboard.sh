@@ -173,7 +173,8 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Load newline json to Big Query 
   \n
-  bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
+  # commenting out because we're using a different google workflow to load this dataset in bigquery
+  #bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
   \n
   \n
   "
