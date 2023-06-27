@@ -1,4 +1,4 @@
-gcloud eventarc triggers create prst-gisaid-trigger-standard \
+gcloud eventarc triggers create prst-bq-update-dashboard-trigger \
 	--destination-workflow=prst-dashboard-standard \
 	--destination-workflow-location=us-central1 \
 	--event-filters="type=google.cloud.storage.object.v1.finalized" \
