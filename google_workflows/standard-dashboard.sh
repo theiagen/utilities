@@ -156,19 +156,19 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Capture the entire Terra data table as a tsv
   \n
-  python3 /scripts/export_large_tsv/export_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --entity_type ${terra_table_root_entity} --tsv_filename ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv
+  #python3 /scripts/export_large_tsv/export_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --entity_type ${terra_table_root_entity} --tsv_filename ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv
   \n
   \n
   # Convert the local Terra table tsv into a newline json
   \n
-  python3 /scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
+  #python3 /scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
   \n
   \n
   # Push newline json to the dashboard GCP bucket and backup folder
   \n
-  gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${dashboard_gcp_uri}/${terra_table_root_entity}.json
+  #gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${dashboard_gcp_uri}/${terra_table_root_entity}.json
   \n
-  gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${output_dir}/backup_jsons/
+  #gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${output_dir}/backup_jsons/
   \n
   \n
   # Load newline json to Big Query 
