@@ -1,0 +1,1338 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+    # CDC
+    - runCDCspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "cdc-specimen-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CA-CDC cdc_specimen_03 cdc_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runCDCspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "cdc-specimen-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CA-CDC cdc_specimen_03 cdc_specimen_03 gs://cdph-terra-dashboard-bucket/dashboard/ cdc_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # LGC
+    - runLGCspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "lgc-specimen-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 lgc_specimen lgc_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runLGCspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "lgc-specimen-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 lgc_specimen lgc_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ lgc_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # Renegade
+    - runRENEGADEspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "rerengade-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 renegade_specimen renegade_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runRENEGADEspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "renegade-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 renegade_specimen renegade_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ renegade_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCB_IGI
+    - runUCBIGIspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucb-igi-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucb_igi_specimen ucb_igi_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCBIGIspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucb-igi-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucb_igi_specimen ucb_igi_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucb_igi_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCD
+    - runUCDspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucd-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucd_specimen ucd_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCDspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucd-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucd_specimen ucd_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucd_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCLA_LI
+    - runUCLALIspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucla-li-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_li_specimen ucla_li_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCLALIspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucla-li-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_li_specimen ucla_li_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucla_li_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCSC
+    - runUCSCspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsc-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCSCspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsc-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsc_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCSC_SCRM
+    - runUCSCSCRMspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsc-scrm-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsd_scrm_specimen ucsd_scrm_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCSCSCRMspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsc-scrm-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsd_scrm_specimen ucsd_scrm_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsd_scrm_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # UCSF_CHOW
+    - runUCSCSCRMspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsf-chow-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsf_chow_specimen ucsf_chow_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    - runUCSFCHOWspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "ucsf-chow-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsf_chow_specimen ucsf_chow_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsf_chow_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # DASHBOARD_SPECIMEN
+    - runDASHBOARDspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "dashboard-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL dashboard_specimen dashboard_specimen gs://cdph-terra-dashboard-bucket/dashboard/ vrdl_dashboard_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # COUNTY_SPECIMEN_MASTER
+    - runCOUNTYspecimenLDS:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "county-lds-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_County_Labs_Master county_specimen_updated county_specimen_master gs://cdph-terra-dashboard-bucket/dashboard/ county_specimen"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SAMPLE_CC
+    - runSAMPLECCspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-cc-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_ContraCosta sample sample_ContraCosta gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SAMPLE_LA
+    - runSAMPLELAspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-la-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles sample sample_LA gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # MISEQ_LA
+    - runMISEQLAspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miseq-la-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles miseq_specimens miseq_specimens_LA gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # NEXTSEQ_LA
+    - runNEXTSEQLAspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "nextseq-la-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles nextseq_specimens nextseq_LA gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # CL_MONTEREY
+    - runCLMONTEREYspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "cl-monterey-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Monterey clearlabs_specimen clearlabs_specimen_Monterey gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # CL_ALAMEDA
+    - runCLALAMEDAspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "cl-alameda-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Alameda clearlabs_specimen clearlabs_specimen_Alameda gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SAMPLE_NSYM
+    - runSAMPLENSYMspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-nsym-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_NSYM sample sample_NSYM gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # FULGENT_OR
+    - runFULGENTORspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "fulgent-or-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange Fulgent_specimen Fulgent_specimen_Orange gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # GRIDION_OR
+    - runGRIDIONORspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "gridion-or-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange gridion_specimen gridion_specimen_Orange gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # MISEQ_OR
+    - runMISEQORspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miseq-or-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange miseq_specimen miseq_specimen_Orange gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # ILLUMINA_SAC
+    - runILLUMINASACspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "illumina-sac-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Sacramento illumina_specimen illumina_specimen_Sacramento gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # ILLUMINA_SB
+    - runILLUMINASBspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "illumina-sb-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanBernardino illumina_specimen illumina_specimen_SanBernardino gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # MISEQ_SD
+    - runMISEQSDspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miseq-sd-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanDiego miseq_specimen miseq_specimen_SanDiego gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+     # MISEQ_SD
+    # SAMPLE_SF
+    - runSAMPLESFspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-sf-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanFrancisco sample sample_SanFrancisco gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SJCPHL
+    - runSJCPHLspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sjcphl-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-Cov-2_SanJoaquin SJCPHL SJCPHL_SJ gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # MISEQ_SC
+    - runMISEQSCspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miseq-sc-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SantaClara miseq_specimen miseq_specimen_SantaClara gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+     # MISEQ_SD
+    # MINISEQ_SLO
+    - runMINISEQSLOspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miniseq-slo-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SLO miniseq_specimen miniseq_specimen_SLO gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SAMPLE_SLO
+    - runSAMPLESLOspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-slo-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SLO sample sample_SLO gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+     # MISEQ_SD
+    # SAMPLE_SONOMA
+    - runSAMPLESONOMAspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-sonoma-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Sonoma sample sample_Sonoma gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+     # MISEQ_SD
+    # MINISEQ_TUL
+    - runMINISEQTULspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miniseq-tul-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Tulare MiniSeq_specimen MiniSeq_specimen_Tulare gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # NEXTSEQ_TUL
+    - runNEXTSEQTULspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "nextseq-tul-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Tulare tulare_nextseq_samples NextSeq_specimen_Tulare gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # SAMPLE_VRDL
+    - runSAMPLEVRDLspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-vrdl-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL sample sample_VRDL gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+    # VRDL_VPD
+    - runVRDLVPDspecimenLooker:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "vrdl-vpd-looker-" + string(int(sys.now()))}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/terra_2_bq_cdph:/data"
+                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL vrdl_vpd_specimen vrdl_vpd_specimen gs://terra-bq-processing/ date"}
+                  volumes:
+                    - gcs:
+                        remotePath: "terra_2_bq_cdph"
+                      mountPath: "/mnt/disks/terra_2_bq_cdph"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+ 

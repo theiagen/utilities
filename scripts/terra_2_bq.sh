@@ -10,13 +10,15 @@ output_filename_prefix=$6
 
 # if user specifies 'date' as output_filename_prefix, reset variable to default table filename ${table_name}_${date_tag}.json
 if [ "${output_filename_prefix}" == "date" ]; then
-  echo 'User specified "date"' "for output_filename_prefix, final output JSON will be named: ${gcs_uri}${table_name}_${date_tag}.json"
+  echo 'DEBUG: User specified "date"' "for output_filename_prefix, final output JSON will be named: ${gcs_uri}${table_name}_${date_tag}.json"
   output_filename_prefix="${table_name}_${date_tag}"
+else
+  echo "DEBUG: User did not specify 'date' for output_filename_prefix, final output JSON will be named: ${gcs_uri}${table_name}.json"
+  output_filename_prefix="${table_name}"
 fi
 
-echo "***Exporting Terra table ${table_name} from workspace ${workspace_name} in Terra project ${terra_project}***"
-
 # download Terra table TSV using export_large_tsv.py from Broad
+echo "DEBUG: downloading Terra table"
 python3 /scripts/export_large_tsv/export_large_tsv.py \
   --project "${terra_project}" \
   --workspace "${workspace_name}" \
@@ -24,18 +26,24 @@ python3 /scripts/export_large_tsv/export_large_tsv.py \
   --page_size 5000 \
   --tsv_filename "${table_name}_${date_tag}.tsv"
 
-echo -e "\n::Procesing ${table_name} for export (${date_tag})::"
-echo
-echo "entering python block of code...."
-
 # add new column
+echo "DEBUG: adding new column"
 sed -i 's/$/\t${table_id}/' "${table_name}_${date_tag}.tsv"
 
 # rename header
-sed -i '1{s/${table_id}$/source_terra_table/}' ${table_name}_${date_tag}.tsv
+echo "DEBUG: renaming header"
+sed -i '1{s/${table_id}$/source_terra_table/}' "${table_name}_${date_tag}.tsv"
 
-# additionally take cleaned-TSV and create nlJSON
+# convert TSV to newline-delimited JSON
+echo "DEBUG: converting TSV to newline-delimited JSON"
+python3 /utilities-0.2/scripts/tsv_to_newline_json.py "${table_name}_${date_tag}.tsv" "${output_filename_prefix}"
 
-python tsv_to_newline_json.py <arguments>
+# copy to GCS bucket
+echo "DEBUG: copying to GCS bucket"
+gsutil -m cp "${output_filename_prefix}.json" "${gcs_uri}${output_filename_prefix}.json"
 
-gsutil -m cp "${table_name}.json" "${gcs_uri}${output_filename_prefix}.json"
+echo "DEBUG: removing TSV and JSON files"
+rm -v "${table_name}_${date_tag}.tsv"
+rm -v "${output_filename_prefix}.json"
+
+echo "DEBUG: done"
