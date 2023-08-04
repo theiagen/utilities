@@ -21,7 +21,7 @@ python3 /scripts/export_large_tsv/export_large_tsv.py \
   --project "${terra_project}" \
   --workspace "${workspace_name}" \
   --entity_type "${table_name}" \
-  --page_size ~{page_size} \
+  --page_size 5000 \
   --tsv_filename "${table_name}_${date_tag}.tsv"
 
 echo -e "\n::Procesing ${table_name} for export (${date_tag})::"
