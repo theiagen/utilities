@@ -8,6 +8,10 @@ main:
           - batchApi: "batch.googleapis.com/v1"
           - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
     # AVELLINO
+    - logCreateAVELLINOJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for AVELLINO"}
     - ruAVELLINOspecimenLooker:
         call: http.post
         args:
@@ -69,6 +73,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # INVITAE
+    - logCreateINVITAEJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for INVITAE"}
     - runINVITAEspecimenLooker:
         call: http.post
         args:
@@ -130,6 +138,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # PANGEA
+    - logCreatePANGEAJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for PANGEA"}
     - runPANGEAspecimenLooker:
         call: http.post
         args:
@@ -191,6 +203,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCB_IGI
+    - logCreateUCBIGIJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCB_IGI"}
     - runUCIGHTFspecimenLooker:
         call: http.post
         args:
@@ -252,6 +268,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCLA_DIAG
+    - logCreateUCLADIAGJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCLA_DIAG"}
     - runUCLADIAGspecimenLooker:
         call: http.post
         args:
@@ -313,6 +333,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCLA_ESKIN
+    - logCreateUCLAESKINJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCLA_ESKIN"}
     - runUCLAESKINspecimenLooker:
         call: http.post
         args:
@@ -374,6 +398,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCSC
+    - logCreateUCSCJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCSC"}
     - runUCSCspecimenLooker:
         call: http.post
         args:
@@ -435,6 +463,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCSC_SCRM
+    - logCreateUCSC_SCRMJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCSC_SCRM"}
     - runUCSBARIASspecimenLooker:
         call: http.post
         args:
@@ -496,6 +528,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCSF_CHIU
+    - logCreateUCSF_CHIUJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCSF_CHIU"}
     - runUCSFCHIUspecimenLooker:
         call: http.post
         args:
@@ -557,6 +593,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCR
+    - logCreateUCRJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCR"}
     - runUCRspecimenLooker:
         call: http.post
         args:
@@ -618,6 +658,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # VBL_COMBINED
+    - logCreateVBLCOMBINEDJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for VBL_COMBINED"}
     - runVBLCOMBINEDspecimenLooker:
         call: http.post
         args:
@@ -679,6 +723,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # VBL_PART2
+    - logCreateVBLPART2Jobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for VBL_PART2"}
     - runVBLPART2specimenLooker:
         call: http.post
         args:
@@ -740,6 +788,10 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # VBL_PART3
+    - logCreateVBLPART3Jobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for VBL_PART3"}
     - runVBLPART2specimenLooker:
         call: http.post
         args:

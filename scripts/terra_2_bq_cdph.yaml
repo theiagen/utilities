@@ -7,13 +7,18 @@ main:
           - region: "us-central1"
           - batchApi: "batch.googleapis.com/v1"
           - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - timeStamp: ${string(int(sys.now()))}
     # CDC
+    - logCreateCDCJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for CDC"}
     - runCDCspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cdc-looker-" + string(int(sys.now()))}
+            job_id: ${ "cdc-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -43,7 +48,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cdc-lds-" + string(int(sys.now()))}
+            job_id: ${ "cdc-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -68,13 +73,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getCDCLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "cdc-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getCDCLookerResult
+    - logCDCLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current CDC Looker job state " + getCDCLookerResult.body.status.state}
+    - checkCDCLookerState:
+        switch:
+          - condition: ${getCDCLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnCDCJobResult
+          - condition: ${getCDCLookerResult.body.status.state == "FAILED"}
+            next: returnCDCLookerResult
+        next: sleepCDCLooker
+    - sleepCDCLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getCDCLookerJob
+    - returnCDCLookerResult:
+        return: 
+          jobId: ${getCDCLookerResult}
+          status: "OK"
+    - getCDCLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "cdc-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getCDCLDSResult
+    - logCDCSLDState:
+        call: sys.log
+        args:
+          data: ${ "Current CDC LDS job state " + getCDCLDSResult.body.status.state}
+    - checkCDCLDSState:
+        switch:
+          - condition: ${getCDCLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnCDCJobResult
+          - condition: ${getCDCLDSResult.body.status.state == "FAILED"}
+            next: returnCDCLDSResult
+        next: sleepCDCLDS
+    - sleepCDCLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getCDCLDSJob
+    - returnCDCLDSResult:
+        return: 
+          jobId: ${getCDCLDSResult}
+          status: "OK"
     # LGC
+    - logCreateLGCJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for LGC"}
     - runLGCspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "lgc-looker-" + string(int(sys.now()))}
+            job_id: ${ "lgc-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -104,7 +167,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "lgc-lds-" + string(int(sys.now()))}
+            job_id: ${ "lgc-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -129,13 +192,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getLGCLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "lgc-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getLGCResult
+    - logLGCLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current LGC Looker job state " + getLGCResult.body.status.state}
+    - checkLGCLookerState:
+        switch:
+          - condition: ${getLGCResult.body.status.state == "SUCCEEDED"}
+            next: returnLGCJobResult
+          - condition: ${getLGCResult.body.status.state == "FAILED"}
+            next: returnLGCLookerResult
+        next: sleepLGCLooker
+    - sleepLGCLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getLGCLookerJob 
+    - returnLGCLookerResult: 
+        return: 
+          jobId: ${getLGCResult}
+          status: "OK"
+    - getLGCLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "lgc-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getLGCLDSResult
+    - logLGCLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current LGC LDS job state " + getLGCLDSResult.body.status.state}
+    - checkLGCLDSState:
+        switch:
+          - condition: ${getLGCLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnLGCJobResult
+          - condition: ${getLGCLDSResult.body.status.state == "FAILED"}
+            next: returnLGCLDSResult
+        next: sleepLGCLDS
+    - sleepLGCLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getLGCLDSJob
+    - returnLGCLDSResult:
+        return: 
+          jobId: ${getLGCLDSResult}
+          status: "OK"
     # RENEGADE
+    - logCreateRENEGADEJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for RENEGADE"}
     - runRENEGADEspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "rerengade-looker-" + string(int(sys.now()))}
+            job_id: ${ "rerengade-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -165,7 +286,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "renegade-lds-" + string(int(sys.now()))}
+            job_id: ${ "renegade-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -190,13 +311,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getRENEGADELookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "renegade-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getRENEGADEResult
+    - logRENEGADELookerState:
+        call: sys.log
+        args:
+          data: ${ "Current RENEGADE Looker job state " + getRENEGADEResult.body.status.state}
+    - checkRENEGADELookerState:
+        switch:
+          - condition: ${getRENEGADEResult.body.status.state == "SUCCEEDED"}
+            next: returnRENEGADEJobResult
+          - condition: ${getRENEGADEResult.body.status.state == "FAILED"}
+            next: returnRENEGADELookerResult
+        next: sleepRENEGADELooker
+    - sleepRENEGADELooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getRENEGADELookerJob
+    - returnRENEGADELookerResult:
+        return: 
+          jobId: ${getRENEGADEResult}
+          status: "OK"
+    - getRENEGADELDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "renegade-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getRENEGADELDSResult
+    - logRENEGADELDSState:
+        call: sys.log
+        args:
+          data: ${ "Current RENEGADE LDS job state " + getRENEGADELDSResult.body.status.state}
+    - checkRENEGADELDSState:
+        switch:
+          - condition: ${getRENEGADELDSResult.body.status.state == "SUCCEEDED"}
+            next: returnRENEGADEJobResult
+          - condition: ${getRENEGADELDSResult.body.status.state == "FAILED"}
+            next: returnRENEGADELDSResult
+        next: sleepRENEGADELDS
+    - sleepRENEGADELDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getRENEGADELDSJob
+    - returnRENEGADELDSResult:
+        return: 
+          jobId: ${getRENEGADELDSResult}
+          status: "OK"
     # UCB_IGI
+    - logCreateUCBIGIJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCB_IGI"}
     - runUCBIGIspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucb-igi-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucb-igi-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -226,7 +405,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucb-igi-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucb-igi-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -251,13 +430,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getUCBIGILookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucb-igi-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCBIGILookerResult
+    - logUCBIGILookerState:
+        call: sys.log
+        args:
+          data: ${ "Current UCB_IGI Looker job state " + getUCBIGILookerResult.body.status.state}
+    - checkUCBIGILookerState:
+        switch:
+          - condition: ${getUCBIGILookerResult.body.status.state == "SUCCEEDED"}
+            next: returnUCBIGILookerResult
+          - condition: ${getUCBIGILookerResult.body.status.state == "FAILED"}
+            next: returnUCBIGILookerResult
+        next: sleepUCBIGILooker
+    - sleepUCBIGILooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCBIGILookerJob
+    - returnUCBIGILookerResult:
+        return: 
+          jobId: ${getUCBIGILookerResult}
+          status: "OK"
+    - getUCBIGILDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucb-igi-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCBIGILDSResult
+    - logUCBIGILDSState:
+        call: sys.log
+        args:
+          data: ${ "Current UCB_IGI LDS job state " + getUCBIGILDSResult.body.status.state}
+    - checkUCBIGILDSState:
+        switch:
+          - condition: ${getUCBIGILDSResult.body.status.state == "SUCCEEDED"}
+            next: returnUCBIGILDSResult
+          - condition: ${getUCBIGILDSResult.body.status.state == "FAILED"}
+            next: returnUCBIGILDSResult
+        next: sleepUCBIGILDS
+    - sleepUCBIGILDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCBIGILDSJob
+    - returnUCBIGILDSResult:
+        return: 
+          jobId: ${getUCBIGILDSResult}
+          status: "OK"
     # UCD
+    - logCreateUCDJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCD"}
     - runUCDspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucd-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucd-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -287,7 +524,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucd-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucd-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -312,13 +549,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getUCDspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucd-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCDspecimenLookerResult
+    - logUCDspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current UCD specimen Looker job state " + getUCDspecimenLookerResult.body.status.state}
+    - checkUCDspecimenLookerState:
+        switch:
+          - condition: ${getUCDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnUCDspecimenLookerResult
+          - condition: ${getUCDspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnUCDspecimenLookerResult
+        next: sleepUCDspecimenLooker
+    - sleepUCDspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCDspecimenLookerJob
+    - returnUCDspecimenLookerResult:
+        return: 
+          jobId: ${getUCDspecimenLookerResult}
+          status: "OK"
+    - getUCDspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucd-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCDspecimenLDSResult
+    - logUCDspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current UCD specimen LDS job state " + getUCDspecimenLDSResult.body.status.state}
+    - checkUCDspecimenLDSState:
+        switch:
+          - condition: ${getUCDspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnUCDspecimenLDSResult
+          - condition: ${getUCDspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnUCDspecimenLDSResult
+        next: sleepUCDspecimenLDS
+    - sleepUCDspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCDspecimenLDSJob
+    - returnUCDspecimenLDSResult:
+        return: 
+          jobId: ${getUCDspecimenLDSResult}
+          status: "OK"
     # UCLA_LI
+    - logCreateUCLALIJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCLA_LI"}
     - runUCLALIspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucla-li-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucla-li-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -348,7 +643,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucla-li-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucla-li-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -373,13 +668,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getUCLALIspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucla-li-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCLALIspecimenLookerResult
+    - logUCLALIspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current UCLA_LI specimen looker job state " + getUCLALIspecimenLookerResult.body.status.state}
+    - checkUCLALIspecimenLookerState:
+        switch:
+          - condition: ${getUCLALIspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnUCLALIspecimenLookerResult
+          - condition: ${getUCLALIspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnUCLALIspecimenLookerResult
+        next: sleepUCLALIspecimenLooker
+    - sleepUCLALIspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCLALIspecimenLookerJob
+    - returnUCLALIspecimenLookerResult:
+        return: 
+          jobId: ${getUCLALIspecimenLookerResult}
+          status: "OK"
+    - getUCLALIspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucla-li-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCLALIspecimenLDSResult
+    - logUCLALIspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current UCLA_LI specimen LDS job state " + getUCLALIspecimenLDSResult.body.status.state}
+    - checkUCLALIspecimenLDSState:
+        switch:
+          - condition: ${getUCLALIspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnUCLALIspecimenLDSResult
+          - condition: ${getUCLALIspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnUCLALIspecimenLDSResult
+        next: sleepUCLALIspecimenLDS
+    - sleepUCLALIspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCLALIspecimenLDSJob
+    - returnUCLALIspecimenLDSResult:
+        return: 
+          jobId: ${getUCLALIspecimenLDSResult}
+          status: "OK"
     # UCSD_SCRM
+    - logCreateUCSDSCRMJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCSD_SCRM"}
     - runUCSDSCRMspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsd-scrm-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucsd-scrm-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -409,7 +762,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsd-scrm-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucsd-scrm-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -434,13 +787,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getUCSDSCRMspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucsd-scrm-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCSDSCRMspecimenLookerResult
+    - logUCSDSCRMspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current UCSD_SCRM specimen looker job state " + getUCSDSCRMspecimenLookerResult.body.status.state}
+    - checkUCSDSCRMspecimenLookerState:
+        switch:
+          - condition: ${getUCSDSCRMspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnUCSDSCRMspecimenLookerResult
+          - condition: ${getUCSDSCRMspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnUCSDSCRMspecimenLookerResult
+        next: sleepUCSDSCRMspecimenLooker
+    - sleepUCSDSCRMspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCSDSCRMspecimenLookerJob
+    - returnUCSDSCRMspecimenLookerResult:
+        return: 
+          jobId: ${getUCSDSCRMspecimenLookerResult}
+          status: "OK"
+    - getUCSDSCRMspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucsd-scrm-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCSDSCRMspecimenLDSResult
+    - logUCSDSCRMspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current UCSD_SCRM specimen LDS job state " + getUCSDSCRMspecimenLDSResult.body.status.state}
+    - checkUCSDSCRMspecimenLDSState:
+        switch:
+          - condition: ${getUCSDSCRMspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnUCSDSCRMspecimenLDSResult
+          - condition: ${getUCSDSCRMspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnUCSDSCRMspecimenLDSResult
+        next: sleepUCSDSCRMspecimenLDS
+    - sleepUCSDSCRMspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCSDSCRMspecimenLDSJob
+    - returnUCSDSCRMspecimenLDSResult:
+        return: 
+          jobId: ${getUCSDSCRMspecimenLDSResult}
+          status: "OK"
     # UCSF_CHOW
-    - runUCSCSCRMspecimenLooker:
+    - logCreateUCSFCHOWJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for UCSF_CHOW"}
+    - runUCSFCHOWspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsf-chow-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucsf-chow-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -470,7 +881,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsf-chow-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucsf-chow-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -495,13 +906,71 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getUCSFCHOWspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucsf-chow-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCSFCHOWspecimenLookerResult
+    - logUCSFCHOWspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current UCSF_CHOW specimen Looker job state " + getUCSFCHOWspecimenLookerResult.body.status.state}
+    - checkUCSFCHOWspecimenLookerState:
+        switch:
+          - condition: ${getUCSFCHOWspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnUCSFCHOWspecimenLookerResult
+          - condition: ${getUCSFCHOWspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnUCSFCHOWspecimenLookerResult
+        next: sleepUCSFCHOWspecimenLooker
+    - sleepUCSFCHOWspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCSFCHOWspecimenLookerJob
+    - returnUCSFCHOWspecimenLookerResult:
+        return: 
+          jobId: ${getUCSFCHOWspecimenLookerResult}
+          status: "OK"
+    - getUCSFCHOWspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "ucsf-chow-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getUCSFCHOWspecimenLDSResult
+    - logUCSFCHOWspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current UCSF_CHOW specimen LDS job state " + getUCSFCHOWspecimenLDSResult.body.status.state}
+    - checkUCSFCHOWspecimenLDSState:
+        switch:
+          - condition: ${getUCSFCHOWspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnUCSFCHOWspecimenLDSResult
+          - condition: ${getUCSFCHOWspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnUCSFCHOWspecimenLDSResult
+        next: sleepUCSFCHOWspecimenLDS
+    - sleepUCSFCHOWspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getUCSFCHOWspecimenLDSJob
+    - returnUCSFCHOWspecimenLDSResult:
+        return: 
+          jobId: ${getUCSFCHOWspecimenLDSResult}
+          status: "OK"
     # DASHBOARD_SPECIMEN
+    - logCreateDASHBOARDJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch jobs for DASHBOARD_SPECIMEN"}
     - runDASHBOARDspecimenLDS:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "dashboard-lds-" + string(int(sys.now()))}
+            job_id: ${ "dashboard-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -526,13 +995,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getDASHBOARDspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "dashboard-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getDASHBOARDspecimenLDSResult
+    - logDASHBOARDspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current DASHBOARD specimen LDS job state " + getDASHBOARDspecimenLDSResult.body.status.state}
+    - checkDASHBOARDspecimenLDSState:
+        switch:
+          - condition: ${getDASHBOARDspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnDASHBOARDspecimenLDSResult
+          - condition: ${getDASHBOARDspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnDASHBOARDspecimenLDSResult
+        next: sleepDASHBOARDspecimenLDS
+    - sleepDASHBOARDspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getDASHBOARDspecimenLDSJob
+    - returnDASHBOARDspecimenLDSResult:
+        return: 
+          jobId: ${getDASHBOARDspecimenLDSResult}
+          status: "OK"
     # COUNTY_SPECIMEN_MASTER
+    - logCreateCOUNTYJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for COUNTY_SPECIMEN_MASTER"}
     - runCOUNTYspecimenLDS:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "county-lds-" + string(int(sys.now()))}
+            job_id: ${ "county-lds-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -557,13 +1057,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getCOUNTYspecimenLDSJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "county-lds-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getCOUNTYspecimenLDSResult
+    - logCOUNTYspecimenLDSState:
+        call: sys.log
+        args:
+          data: ${ "Current COUNTY specimen LDS job state " + getCOUNTYspecimenLDSResult.body.status.state}
+    - checkCOUNTYspecimenLDSState:
+        switch:
+          - condition: ${getCOUNTYspecimenLDSResult.body.status.state == "SUCCEEDED"}
+            next: returnCOUNTYspecimenLDSResult
+          - condition: ${getCOUNTYspecimenLDSResult.body.status.state == "FAILED"}
+            next: returnCOUNTYspecimenLDSResult
+        next: sleepCOUNTYspecimenLDS
+    - sleepCOUNTYspecimenLDS:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getCOUNTYspecimenLDSJob
+    - returnCOUNTYspecimenLDSResult:
+        return: 
+          jobId: ${getCOUNTYspecimenLDSResult}
+          status: "OK"
     # SAMPLE_CC
+    - logCreateSAMPLECCJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_CC"}
     - runSAMPLECCspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-cc-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-cc-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -588,13 +1119,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSAMPLECCspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sample-cc-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSAMPLECCspecimenLookerResult
+    - logSAMPLECCspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SAMPLE_CC specimen looker job state " + getSAMPLECCspecimenLookerResult.body.status.state}
+    - checkSAMPLECCspecimenLookerState:
+        switch:
+          - condition: ${getSAMPLECCspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLECCspecimenLookerResult
+          - condition: ${getSAMPLECCspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLECCspecimenLookerResult
+        next: sleepSAMPLECCspecimenLooker
+    - sleepSAMPLECCspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSAMPLECCspecimenLookerJob
+    - returnSAMPLECCspecimenLookerResult:
+        return: 
+          jobId: ${getSAMPLECCspecimenLookerResult}
+          status: "OK"
     # SAMPLE_LA
+    - logCreateSAMPLELAJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_LA"}
     - runSAMPLELAspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-la-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-la-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -619,13 +1181,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSAMPLELAspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sample-la-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSAMPLELAspecimenLookerResult
+    - logSAMPLELAspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SAMPLE_LA specimen looker job state " + getSAMPLELAspecimenLookerResult.body.status.state}
+    - checkSAMPLELAspecimenLookerState:
+        switch:
+          - condition: ${getSAMPLELAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLELAspecimenLookerResult
+          - condition: ${getSAMPLELAspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLELAspecimenLookerResult
+        next: sleepSAMPLELAspecimenLooker
+    - sleepSAMPLELAspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSAMPLELAspecimenLookerJob
+    - returnSAMPLELAspecimenLookerResult:
+        return: 
+          jobId: ${getSAMPLELAspecimenLookerResult}
+          status: "OK"
     # MISEQ_LA
+    - logCreateMISEQLAJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MISEQ_LA"}
     - runMISEQLAspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miseq-la-looker-" + string(int(sys.now()))}
+            job_id: ${ "miseq-la-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -650,13 +1243,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getMISEQLAspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "miseq-la-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getMISEQLAspecimenLookerResult
+    - logMISEQLAspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_LA specimen looker job state " + getMISEQLAspecimenLookerResult.body.status.state}
+    - checkMISEQLAspecimenLookerState:
+        switch:
+          - condition: ${getMISEQLAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQLAspecimenLookerResult
+          - condition: ${getMISEQLAspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQLAspecimenLookerResult
+        next: sleepMISEQLAspecimenLooker
+    - sleepMISEQLAspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQLAspecimenLookerJob
+    - returnMISEQLAspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQLAspecimenLookerResult}
+          status: "OK"
     # NEXTSEQ_LA
+    - logCreateNEXTSEQLAJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for NEXTSEQ_LA"}
     - runNEXTSEQLAspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "nextseq-la-looker-" + string(int(sys.now()))}
+            job_id: ${ "nextseq-la-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -681,13 +1305,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getNEXTSEQLAspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "nextseq-la-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getNEXTSEQLAspecimenLookerResult
+    - logNEXTSEQLAspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current NEXTSEQ_LA specimen looker job state " + getNEXTSEQLAspecimenLookerResult.body.status.state}
+    - checkNEXTSEQLAspecimenLookerState:
+        switch:
+          - condition: ${getNEXTSEQLAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnNEXTSEQLAspecimenLookerResult
+          - condition: ${getNEXTSEQLAspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnNEXTSEQLAspecimenLookerResult
+        next: sleepNEXTSEQLAspecimenLooker
+    - sleepNEXTSEQLAspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getNEXTSEQLAspecimenLookerJob
+    - returnNEXTSEQLAspecimenLookerResult:
+        return: 
+          jobId: ${getNEXTSEQLAspecimenLookerResult}
+          status: "OK"
     # CL_MONTEREY
+    - logCreateCLMONTEREYJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for CL_MONTEREY"}
     - runCLMONTEREYspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cl-monterey-looker-" + string(int(sys.now()))}
+            job_id: ${ "cl-monterey-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -712,13 +1367,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getCLMONTEREYspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "cl-monterey-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getCLMONTEREYspecimenLookerResult
+    - logCLMONTEREYspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current CL_MONTEREY specimen looker job state " + getCLMONTEREYspecimenLookerResult.body.status.state}
+    - checkCLMONTEREYspecimenLookerState:
+        switch:
+          - condition: ${getCLMONTEREYspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnCLMONTEREYspecimenLookerResult
+          - condition: ${getCLMONTEREYspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnCLMONTEREYspecimenLookerResult
+        next: sleepCLMONTEREYspecimenLooker
+    - sleepCLMONTEREYspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getCLMONTEREYspecimenLookerJob
+    - returnCLMONTEREYspecimenLookerResult:
+        return: 
+          jobId: ${getCLMONTEREYspecimenLookerResult}
+          status: "OK"
     # CL_ALAMEDA
+    - logCreateCLALAMEDAJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for CL_ALAMEDA"}
     - runCLALAMEDAspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cl-alameda-looker-" + string(int(sys.now()))}
+            job_id: ${ "cl-alameda-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -743,13 +1429,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getCLALAMEDAspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "cl-alameda-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getCLALAMEDAspecimenLookerResult
+    - logCLALAMEDAspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current CL_ALAMEDA specimen looker job state " + getCLALAMEDAspecimenLookerResult.body.status.state}
+    - checkCLALAMEDAspecimenLookerState:
+        switch:
+          - condition: ${getCLALAMEDAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnCLALAMEDAspecimenLookerResult
+          - condition: ${getCLALAMEDAspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnCLALAMEDAspecimenLookerResult
+        next: sleepCLALAMEDAspecimenLooker
+    - sleepCLALAMEDAspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getCLALAMEDAspecimenLookerJob
+    - returnCLALAMEDAspecimenLookerResult:
+        return: 
+          jobId: ${getCLALAMEDAspecimenLookerResult}
+          status: "OK"
     # SAMPLE_NSYM
+    - logCreateSAMPLENSYMJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_NSYM"}
     - runSAMPLENSYMspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-nsym-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-nsym-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -774,13 +1491,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSAMPLENSYMspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sample-nsym-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSAMPLENSYMspecimenLookerResult
+    - logSAMPLENSYMspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SAMPLE_NSYM specimen looker job state " + getSAMPLENSYMspecimenLookerResult.body.status.state}
+    - checkSAMPLENSYMspecimenLookerState:
+        switch:
+          - condition: ${getSAMPLENSYMspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLENSYMspecimenLookerResult
+          - condition: ${getSAMPLENSYMspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLENSYMspecimenLookerResult
+        next: sleepSAMPLENSYMspecimenLooker
+    - sleepSAMPLENSYMspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSAMPLENSYMspecimenLookerJob
+    - returnSAMPLENSYMspecimenLookerResult:
+        return: 
+          jobId: ${getSAMPLENSYMspecimenLookerResult}
+          status: "OK"
     # FULGENT_OR
+    - logCreateFULGENTORJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for FULGENT_OR"}
     - runFULGENTORspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "fulgent-or-looker-" + string(int(sys.now()))}
+            job_id: ${ "fulgent-or-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -805,13 +1553,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getFULGENTORspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "fulgent-or-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getFULGENTORspecimenLookerResult
+    - logFULGENTORspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current FULGENT_OR specimen looker job state " + getFULGENTORspecimenLookerResult.body.status.state}
+    - checkFULGENTORspecimenLookerState:
+        switch:
+          - condition: ${getFULGENTORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnFULGENTORspecimenLookerResult
+          - condition: ${getFULGENTORspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnFULGENTORspecimenLookerResult
+        next: sleepFULGENTORspecimenLooker
+    - sleepFULGENTORspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getFULGENTORspecimenLookerJob
+    - returnFULGENTORspecimenLookerResult:
+        return: 
+          jobId: ${getFULGENTORspecimenLookerResult}
+          status: "OK"
     # GRIDION_OR
+    - logCreateGRIDIONORJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for GRIDION_OR"}
     - runGRIDIONORspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "gridion-or-looker-" + string(int(sys.now()))}
+            job_id: ${ "gridion-or-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -836,13 +1615,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getGRIDIONORspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "gridion-or-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getGRIDIONORspecimenLookerResult
+    - logGRIDIONORspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current GRIDION_OR specimen looker job state " + getGRIDIONORspecimenLookerResult.body.status.state}
+    - checkGRIDIONORspecimenLookerState:
+        switch:
+          - condition: ${getGRIDIONORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnGRIDIONORspecimenLookerResult
+          - condition: ${getGRIDIONORspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnGRIDIONORspecimenLookerResult
+        next: sleepGRIDIONORspecimenLooker
+    - sleepGRIDIONORspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getGRIDIONORspecimenLookerJob
+    - returnGRIDIONORspecimenLookerResult:
+        return: 
+          jobId: ${getGRIDIONORspecimenLookerResult}
+          status: "OK"
     # MISEQ_OR
+    - logCreateMISEQORJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MISEQ_OR"}
     - runMISEQORspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miseq-or-looker-" + string(int(sys.now()))}
+            job_id: ${ "miseq-or-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -867,13 +1677,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getMISEQORspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "miseq-or-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getMISEQORspecimenLookerResult
+    - logMISEQORspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_OR specimen looker job state " + getMISEQORspecimenLookerResult.body.status.state}
+    - checkMISEQORspecimenLookerState:
+        switch:
+          - condition: ${getMISEQORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQORspecimenLookerResult
+          - condition: ${getMISEQORspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQORspecimenLookerResult
+        next: sleepMISEQORspecimenLooker
+    - sleepMISEQORspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQORspecimenLookerJob
+    - returnMISEQORspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQORspecimenLookerResult}
+          status: "OK"
     # ILLUMINA_SAC
+    - logCreateILLUMINASACJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for ILLUMINA_SAC"}
     - runILLUMINASACspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "illumina-sac-looker-" + string(int(sys.now()))}
+            job_id: ${ "illumina-sac-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -898,13 +1739,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getILLUMINASACspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "illumina-sac-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getILLUMINASACspecimenLookerResult
+    - logILLUMINASACspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current ILLUMINA_SAC specimen looker job state " + getILLUMINASACspecimenLookerResult.body.status.state}
+    - checkILLUMINASACspecimenLookerState:
+        switch:
+          - condition: ${getILLUMINASACspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnILLUMINASACspecimenLookerResult
+          - condition: ${getILLUMINASACspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnILLUMINASACspecimenLookerResult
+        next: sleepILLUMINASACspecimenLooker
+    - sleepILLUMINASACspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getILLUMINASACspecimenLookerJob
+    - returnILLUMINASACspecimenLookerResult:
+        return: 
+          jobId: ${getILLUMINASACspecimenLookerResult}
+          status: "OK"
     # ILLUMINA_SB
+    - logCreateILLUMINASBJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for ILLUMINA_SB"}
     - runILLUMINASBspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "illumina-sb-looker-" + string(int(sys.now()))}
+            job_id: ${ "illumina-sb-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -929,13 +1801,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getILLUMINASBspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "illumina-sb-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getILLUMINASBspecimenLookerResult
+    - logILLUMINASBspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current ILLUMINA_SB specimen looker job state " + getILLUMINASBspecimenLookerResult.body.status.state}
+    - checkILLUMINASBspecimenLookerState:
+        switch:
+          - condition: ${getILLUMINASBspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnILLUMINASBspecimenLookerResult
+          - condition: ${getILLUMINASBspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnILLUMINASBspecimenLookerResult
+        next: sleepILLUMINASBspecimenLooker
+    - sleepILLUMINASBspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getILLUMINASBspecimenLookerJob
+    - returnILLUMINASBspecimenLookerResult:
+        return: 
+          jobId: ${getILLUMINASBspecimenLookerResult}
+          status: "OK"
     # MISEQ_SD
+    - logCreateMISEQSDJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MISEQ_SD"}
     - runMISEQSDspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miseq-sd-looker-" + string(int(sys.now()))}
+            job_id: ${ "miseq-sd-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -961,13 +1864,44 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    - getMISEQSDspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "miseq-sd-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getMISEQSDspecimenLookerResult
+    - logMISEQSDspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
+    - checkMISEQSDspecimenLookerState:
+        switch:
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQSDspecimenLookerResult
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQSDspecimenLookerResult
+        next: sleepMISEQSDspecimenLooker
+    - sleepMISEQSDspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQSDspecimenLookerJob
+    - returnMISEQSDspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQSDspecimenLookerResult}
+          status: "OK"
     # SAMPLE_SF
+    - logCreateSAMPLESFJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_SF"}
     - runSAMPLESFspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-sf-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-sf-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -992,13 +1926,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSAMPLESFspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sample-sf-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSAMPLESFspecimenLookerResult
+    - logSAMPLESFspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SAMPLE_SF specimen looker job state " + getSAMPLESFspecimenLookerResult.body.status.state}
+    - checkSAMPLESFspecimenLookerState:
+        switch:
+          - condition: ${getSAMPLESFspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLESFspecimenLookerResult
+          - condition: ${getSAMPLESFspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLESFspecimenLookerResult
+        next: sleepSAMPLESFspecimenLooker
+    - sleepSAMPLESFspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSAMPLESFspecimenLookerJob
+    - returnSAMPLESFspecimenLookerResult:
+        return: 
+          jobId: ${getSAMPLESFspecimenLookerResult}
+          status: "OK"
     # SJCPHL
+    - logCreateSJCPHLJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SJCPHL"}
     - runSJCPHLspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sjcphl-looker-" + string(int(sys.now()))}
+            job_id: ${ "sjcphl-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1023,13 +1988,44 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSJCPHLspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sjcphl-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSJCPHLspecimenLookerResult
+    - logSJCPHLspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SJCPHL specimen looker job state " + getSJCPHLspecimenLookerResult.body.status.state}
+    - checkSJCPHLspecimenLookerState:
+        switch:
+          - condition: ${getSJCPHLspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSJCPHLspecimenLookerResult
+          - condition: ${getSJCPHLspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSJCPHLspecimenLookerResult
+        next: sleepSJCPHLspecimenLooker
+    - sleepSJCPHLspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSJCPHLspecimenLookerJob
+    - returnSJCPHLspecimenLookerResult:
+        return: 
+          jobId: ${getSJCPHLspecimenLookerResult}
+          status: "OK"
     # MISEQ_SC
+    - logCreateMISEQSCJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MISEQ_SC"}
     - runMISEQSCspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miseq-sc-looker-" + string(int(sys.now()))}
+            job_id: ${ "miseq-sc-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1055,13 +2051,37 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    - logMISEQSCspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_SC specimen looker job state " + getMISEQSCspecimenLookerResult.body.status.state}
+    - checkMISEQSCspecimenLookerState:
+        switch:
+          - condition: ${getMISEQSCspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQSCspecimenLookerResult
+          - condition: ${getMISEQSCspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQSCspecimenLookerResult
+        next: sleepMISEQSCspecimenLooker
+    - sleepMISEQSCspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQSCspecimenLookerJob
+    - returnMISEQSCspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQSCspecimenLookerResult}
+          status: "OK"
     # MINISEQ_SLO
+    - logCreateMINISEQSLOJobs:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MINISEQ_SLO"}
     - runMINISEQSLOspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miniseq-slo-looker-" + string(int(sys.now()))}
+            job_id: ${ "miniseq-slo-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1086,13 +2106,37 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - logMINISEQSLOspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MINISEQ_SLO specimen looker job state " + getMINISEQSLOspecimenLookerResult.body.status.state}
+    - checkMINISEQSLOspecimenLookerState:
+        switch:
+          - condition: ${getMINISEQSLOspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMINISEQSLOspecimenLookerResult
+          - condition: ${getMINISEQSLOspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMINISEQSLOspecimenLookerResult
+        next: sleepMINISEQSLOspecimenLooker
+    - sleepMINISEQSLOspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMINISEQSLOspecimenLookerJob
+    - returnMINISEQSLOspecimenLookerResult:
+        return: 
+          jobId: ${getMINISEQSLOspecimenLookerResult}
+          status: "OK"
     # SAMPLE_SLO
+    - logCreateSAMPLESLOJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_SLO"}
     - runSAMPLESLOspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-slo-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-slo-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1118,13 +2162,37 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    - logMISEQSDspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
+    - checkMISEQSDspecimenLookerState:
+        switch:
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQSDspecimenLookerResult
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQSDspecimenLookerResult
+        next: sleepMISEQSDspecimenLooker
+    - sleepMISEQSDspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQSDspecimenLookerJob
+    - returnMISEQSDspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQSDspecimenLookerResult}
+          status: "OK"
     # SAMPLE_SONOMA
+    - logCreateSAMPLESONOMAJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_SONOMA"}
     - runSAMPLESONOMAspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-sonoma-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-sonoma-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1150,13 +2218,37 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    - logMISEQSDspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
+    - checkMISEQSDspecimenLookerState:
+        switch:
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMISEQSDspecimenLookerResult
+          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMISEQSDspecimenLookerResult
+        next: sleepMISEQSDspecimenLooker
+    - sleepMISEQSDspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMISEQSDspecimenLookerJob
+    - returnMISEQSDspecimenLookerResult:
+        return: 
+          jobId: ${getMISEQSDspecimenLookerResult}
+          status: "OK"
     # MINISEQ_TUL
+    - logCreateMINISEQTULJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for MINISEQ_TUL"}
     - runMINISEQTULspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "miniseq-tul-looker-" + string(int(sys.now()))}
+            job_id: ${ "miniseq-tul-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1181,13 +2273,37 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - logMINISEQTULspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current MINISEQ_TUL specimen looker job state " + getMINISEQTULspecimenLookerResult.body.status.state}
+    - checkMINISEQTULspecimenLookerState:
+        switch:
+          - condition: ${getMINISEQTULspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnMINISEQTULspecimenLookerResult
+          - condition: ${getMINISEQTULspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnMINISEQTULspecimenLookerResult
+        next: sleepMINISEQTULspecimenLooker
+    - sleepMINISEQTULspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getMINISEQTULspecimenLookerJob
+    - returnMINISEQTULspecimenLookerResult:
+        return: 
+          jobId: ${getMINISEQTULspecimenLookerResult}
+          status: "OK"
     # NEXTSEQ_TUL
+    - logCreateNEXTSEQTULJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for NEXTSEQ_TUL"}
     - runNEXTSEQTULspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "nextseq-tul-looker-" + string(int(sys.now()))}
+            job_id: ${ "nextseq-tul-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1212,13 +2328,37 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - logNEXTSEQTULspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current NEXTSEQ_TUL specimen looker job state " + getNEXTSEQTULspecimenLookerResult.body.status.state}
+    - checkNEXTSEQTULspecimenLookerState:
+        switch:
+          - condition: ${getNEXTSEQTULspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnNEXTSEQTULspecimenLookerResult
+          - condition: ${getNEXTSEQTULspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnNEXTSEQTULspecimenLookerResult
+        next: sleepNEXTSEQTULspecimenLooker
+    - sleepNEXTSEQTULspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getNEXTSEQTULspecimenLookerJob
+    - returnNEXTSEQTULspecimenLookerResult:
+        return: 
+          jobId: ${getNEXTSEQTULspecimenLookerResult}
+          status: "OK"
     # SAMPLE_VRDL
+    - logCreateSAMPLEVRDLJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for SAMPLE_VRDL"}
     - runSAMPLEVRDLspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "sample-vrdl-looker-" + string(int(sys.now()))}
+            job_id: ${ "sample-vrdl-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1243,13 +2383,37 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - logSAMPLEVRDLspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current SAMPLE_VRDL specimen looker job state " + getSAMPLEVRDLspecimenLookerResult.body.status.state}
+    - checkSAMPLEVRDLspecimenLookerState:
+        switch:
+          - condition: ${getSAMPLEVRDLspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLEVRDLspecimenLookerResult
+          - condition: ${getSAMPLEVRDLspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLEVRDLspecimenLookerResult
+        next: sleepSAMPLEVRDLspecimenLooker
+    - sleepSAMPLEVRDLspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getSAMPLEVRDLspecimenLookerJob
+    - returnSAMPLEVRDLspecimenLookerResult:
+        return: 
+          jobId: ${getSAMPLEVRDLspecimenLookerResult}
+          status: "OK"
     # VRDL_VPD
+    - logCreateVRDLVPDJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job for VRDL_VPD"}
     - runVRDLVPDspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "vrdl-vpd-looker-" + string(int(sys.now()))}
+            job_id: ${ "vrdl-vpd-looker-" + timeStamp}
           headers:
             Content-Type: application/json
           auth:
@@ -1274,4 +2438,23 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
- 
+    - logVRDLVPDspecimenLookerState:
+        call: sys.log
+        args:
+          data: ${ "Current VRDL_VPD specimen looker job state " + getVRDLVPDspecimenLookerResult.body.status.state}
+    - checkVRDLVPDspecimenLookerState:
+        switch:
+          - condition: ${getVRDLVPDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnVRDLVPDspecimenLookerResult
+          - condition: ${getVRDLVPDspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnVRDLVPDspecimenLookerResult
+        next: sleepVRDLVPDspecimenLooker
+    - sleepVRDLVPDspecimenLooker:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getVRDLVPDspecimenLookerJob
+    - returnVRDLVPDspecimenLookerResult:
+        return: 
+          jobId: ${getVRDLVPDspecimenLookerResult}
+          status: "OK"
