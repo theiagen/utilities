@@ -13,7 +13,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cdc-specimen-looker-" + string(int(sys.now()))}
+            job_id: ${ "cdc-looker-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
@@ -43,7 +43,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "cdc-specimen-lds-" + string(int(sys.now()))}
+            job_id: ${ "cdc-lds-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
@@ -74,7 +74,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "lgc-specimen-looker-" + string(int(sys.now()))}
+            job_id: ${ "lgc-looker-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
@@ -104,7 +104,7 @@ main:
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "lgc-specimen-lds-" + string(int(sys.now()))}
+            job_id: ${ "lgc-lds-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
@@ -129,7 +129,7 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
-    # Renegade
+    # RENEGADE
     - runRENEGADEspecimenLooker:
         call: http.post
         args:
@@ -373,74 +373,13 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
-    # UCSC
-    - runUCSCspecimenLooker:
+    # UCSD_SCRM
+    - runUCSDSCRMspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsc-looker-" + string(int(sys.now()))}
-          headers:
-            Content-Type: application/json
-          auth:
-            type: OAuth2
-          body:
-            taskGroups:
-              - taskSpec:
-                  runnables:
-                    - container:
-                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
-                        entrypoint: "/bin/bash"
-                        volumes:
-                          - "/mnt/disks/terra_2_bq_cdph:/data"
-                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
-                        commands:
-                          - "-c"
-                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen gs://terra-bq-processing/ date"}
-                  volumes:
-                    - gcs:
-                        remotePath: "terra_2_bq_cdph"
-                      mountPath: "/mnt/disks/terra_2_bq_cdph"
-                taskCount: 1
-            logsPolicy:
-              destination: CLOUD_LOGGING
-    - runUCSCspecimenLDS:
-        call: http.post
-        args:
-          url: ${batchApiUrl}
-          query:
-            job_id: ${ "ucsc-lds-" + string(int(sys.now()))}
-          headers:
-            Content-Type: application/json
-          auth:
-            type: OAuth2
-          body:
-            taskGroups:
-              - taskSpec:
-                  runnables:
-                    - container:
-                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-06-21"
-                        entrypoint: "/bin/bash"
-                        volumes:
-                          - "/mnt/disks/terra_2_bq_cdph:/data"
-                          - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
-                        commands:
-                          - "-c"
-                          - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsc_specimen"}
-                  volumes:
-                    - gcs:
-                        remotePath: "terra_2_bq_cdph"
-                      mountPath: "/mnt/disks/terra_2_bq_cdph"
-                taskCount: 1
-            logsPolicy:
-              destination: CLOUD_LOGGING
-    # UCSC_SCRM
-    - runUCSCSCRMspecimenLooker:
-        call: http.post
-        args:
-          url: ${batchApiUrl}
-          query:
-            job_id: ${ "ucsc-scrm-looker-" + string(int(sys.now()))}
+            job_id: ${ "ucsd-scrm-looker-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
@@ -465,12 +404,12 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
-    - runUCSCSCRMspecimenLDS:
+    - runUCSDSCRMspecimenLDS:
         call: http.post
         args:
           url: ${batchApiUrl}
           query:
-            job_id: ${ "ucsc-scrm-lds-" + string(int(sys.now()))}
+            job_id: ${ "ucsd-scrm-lds-" + string(int(sys.now()))}
           headers:
             Content-Type: application/json
           auth:
