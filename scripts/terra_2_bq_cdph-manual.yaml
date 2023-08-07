@@ -792,7 +792,7 @@ main:
         call: sys.log
         args:
           data: ${ "Creating and running the batch jobs for VBL_PART3"}
-    - runVBLPART2specimenLooker:
+    - runVBLPART3specimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}
