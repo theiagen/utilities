@@ -528,7 +528,7 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCSF_CHIU
-    - logCreateUCSF_CHIUJobs:
+    - logCreateUCSFCHIUJobs:
         call: sys.log
         args:
           data: ${ "Creating and running the batch jobs for UCSF_CHIU"}
