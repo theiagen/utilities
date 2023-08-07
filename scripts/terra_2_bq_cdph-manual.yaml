@@ -202,11 +202,11 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
-    # UCB_IGI
-    - logCreateUCBIGIJobs:
+    # UCI_GHTF
+    - logCreateUCIGHTFJobs:
         call: sys.log
         args:
-          data: ${ "Creating and running the batch jobs for UCB_IGI"}
+          data: ${ "Creating and running the batch jobs for UCI_GHTF"}
     - runUCIGHTFspecimenLooker:
         call: http.post
         args:
