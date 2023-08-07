@@ -463,7 +463,7 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
     # UCSC_SCRM
-    - logCreateUCSC_SCRMJobs:
+    - logCreateUCSCSCRMJobs:
         call: sys.log
         args:
           data: ${ "Creating and running the batch jobs for UCSC_SCRM"}
