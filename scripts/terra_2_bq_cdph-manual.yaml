@@ -12,7 +12,7 @@ main:
         call: sys.log
         args:
           data: ${ "Creating and running the batch jobs for AVELLINO"}
-    - ruAVELLINOspecimenLooker:
+    - runAVELLINOspecimenLooker:
         call: http.post
         args:
           url: ${batchApiUrl}

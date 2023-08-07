@@ -2051,6 +2051,13 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    - getMISEQSCspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "miseq-sc-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getMISEQSCspecimenLookerResult
     - logMISEQSCspecimenLookerState:
         call: sys.log
         args:
@@ -2106,6 +2113,13 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getMINISEQSLOspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "miniseq-slo-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getMINISEQSLOspecimenLookerResult
     - logMINISEQSLOspecimenLookerState:
         call: sys.log
         args:
@@ -2162,6 +2176,7 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
+    
     - logMISEQSDspecimenLookerState:
         call: sys.log
         args:
@@ -2218,25 +2233,36 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
-    - logMISEQSDspecimenLookerState:
+    - getSAMPLESONOMAspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-sonoma-looker-" + timeStamp}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+        result: getSAMPLESONOMAspecimenLookerResult
+    - logSAMPLESONOMAspecimenLookerState:
         call: sys.log
         args:
-          data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
-    - checkMISEQSDspecimenLookerState:
+          data: ${ "Current SAMPLE_SONOMA specimen looker job state " + getSAMPLESONOMAspecimenLookerResult.body.status.state}
+    - checkSAMPLESONOMAspecimenLookerState:
         switch:
-          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
-            next: returnMISEQSDspecimenLookerResult
-          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
-            next: returnMISEQSDspecimenLookerResult
-        next: sleepMISEQSDspecimenLooker
-    - sleepMISEQSDspecimenLooker:
+          - condition: ${getSAMPLESONOMAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLESONOMAspecimenLookerResult
+          - condition: ${getSAMPLESONOMAspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLESONOMAspecimenLookerResult
+        next: sleepSAMPLESONOMAspecimenLooker
+    - sleepSAMPLESONOMAspecimenLooker:
         call: sys.sleep
         args:
           seconds: 10
-        next: getMISEQSDspecimenLookerJob
-    - returnMISEQSDspecimenLookerResult:
+        next: getSAMPLESONOMAspecimenLookerJob
+    - returnSAMPLESONOMAspecimenLookerResult:
         return: 
-          jobId: ${getMISEQSDspecimenLookerResult}
+          jobId: ${getSAMPLESONOMAspecimenLookerResult}
           status: "OK"
     # MINISEQ_TUL
     - logCreateMINISEQTULJob:
@@ -2273,6 +2299,17 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getMINISEQTULspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "miniseq-tul-looker-" + timeStamp}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+        result: getMINISEQTULspecimenLookerResult
     - logMINISEQTULspecimenLookerState:
         call: sys.log
         args:
@@ -2328,6 +2365,17 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getNEXTSEQTULspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "nextseq-tul-looker-" + timeStamp}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+        result: getNEXTSEQTULspecimenLookerResult
     - logNEXTSEQTULspecimenLookerState:
         call: sys.log
         args:
@@ -2383,6 +2431,17 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getSAMPLEVRDLspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "sample-vrdl-looker-" + timeStamp}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+        result: getSAMPLEVRDLspecimenLookerResult
     - logSAMPLEVRDLspecimenLookerState:
         call: sys.log
         args:
@@ -2438,6 +2497,17 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
+    - getVRDLVPDspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${ "vrdl-vpd-looker-" + timeStamp}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+        result: getVRDLVPDspecimenLookerResult
     - logVRDLVPDspecimenLookerState:
         call: sys.log
         args:
