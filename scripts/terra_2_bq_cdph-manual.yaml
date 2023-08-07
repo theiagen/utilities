@@ -462,11 +462,11 @@ main:
                 taskCount: 1
             logsPolicy:
               destination: CLOUD_LOGGING
-    # UCSC_SCRM
-    - logCreateUCSCSCRMJobs:
+    # UCSB_ARIAS
+    - logCreateUCSBARIASJobs:
         call: sys.log
         args:
-          data: ${ "Creating and running the batch jobs for UCSC_SCRM"}
+          data: ${ "Creating and running the batch jobs for UCSB ARIAS"}
     - runUCSBARIASspecimenLooker:
         call: http.post
         args:
