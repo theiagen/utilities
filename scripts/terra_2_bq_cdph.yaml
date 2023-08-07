@@ -2176,26 +2176,32 @@ main:
             logsPolicy:
               destination: CLOUD_LOGGING
      # MISEQ_SD
-    
-    - logMISEQSDspecimenLookerState:
+    - getSAMPLESLOspecimenLookerJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + "sample-slo-looker-" + timeStamp}
+          auth:
+            type: OAuth2
+        result: getSAMPLESLOspecimenLookerResult
+    - logSAMPLESLOspecimenLookerState:
         call: sys.log
         args:
-          data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
-    - checkMISEQSDspecimenLookerState:
+          data: ${ "Current SAMPLE_SLO specimen looker job state " + getSAMPLESLOspecimenLookerResult.body.status.state}
+    - checkSAMPLESLOspecimenLookerState:
         switch:
-          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
-            next: returnMISEQSDspecimenLookerResult
-          - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
-            next: returnMISEQSDspecimenLookerResult
-        next: sleepMISEQSDspecimenLooker
-    - sleepMISEQSDspecimenLooker:
+          - condition: ${getSAMPLESLOspecimenLookerResult.body.status.state == "SUCCEEDED"}
+            next: returnSAMPLESLOspecimenLookerResult
+          - condition: ${getSAMPLESLOspecimenLookerResult.body.status.state == "FAILED"}
+            next: returnSAMPLESLOspecimenLookerResult
+        next: sleepSAMPLESLOspecimenLooker
+    - sleepSAMPLESLOspecimenLooker:
         call: sys.sleep
         args:
           seconds: 10
-        next: getMISEQSDspecimenLookerJob
-    - returnMISEQSDspecimenLookerResult:
+        next: getSAMPLESLOspecimenLookerJob
+    - returnSAMPLESLOspecimenLookerResult:
         return: 
-          jobId: ${getMISEQSDspecimenLookerResult}
+          jobId: ${getSAMPLESLOspecimenLookerResult}
           status: "OK"
     # SAMPLE_SONOMA
     - logCreateSAMPLESONOMAJob:
