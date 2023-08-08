@@ -35,6 +35,8 @@ with open(arguments.tsv_file, 'r') as infile:
             y = y.replace("|", ",")
           if y == "NA":
             y = ""
+          if x == "assembly_length_unambiguous" or x == "number_N" or x == "assembly_mean_coverage" or x == "percent_reference_coverage":
+            y = y.replace("None", "")
           if y == "N/A":
             y = ""
           if y == "Unknown":
