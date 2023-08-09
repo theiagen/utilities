@@ -1,0 +1,1548 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - timeStamp: ${string(int(sys.now()))}
+    - logStart:
+        call: sys.log
+        args:
+          data: ${ "Starting the terra2bq-manual workflow"}
+    - updateTables:
+        parallel:
+          shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+          branches:
+            - updateAVELLINOtoUCLADIAG:
+                steps:
+                  - childUpdateAVELLINOtoUCLADIAG:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - processAVELLINOLooker:
+                              steps:
+                                - logCreateAVELLINOLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for AVELLINO Looker"}
+                                - runAVELLINOLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "avellino-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 avellino_specimen avellino_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getAVELLINOLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "avellino-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getAVELLINOLookerResult
+                                - logAVELLINOLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current AVELLINO Looker job state " + getAVELLINOLookerResult.body.status.state}
+                                - checkAVELLINOLookerState:
+                                    switch:
+                                      - condition: ${getAVELLINOLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getAVELLINOLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepAVELLINOLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getAVELLINOLookerJob
+                          - processAVELLINOLDS:
+                              steps:
+                                - logCreateAVELLINOLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for AVELLINO LDS"}
+                                - runAVELLINOLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "avellino-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 avellino_specimen avellino_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ avellino_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getAVELLINOLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "avellino-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getAVELLINOLDSResult
+                                - logAVELLINOLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current AVELLINO LDS job state " + getAVELLINOLDSResult.body.status.state}
+                                - checkAVELLINOLDSState:
+                                    switch:
+                                      - condition: ${getAVELLINOLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getAVELLINOLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepAVELLINOLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getAVELLINOLDSJob
+                          - processINVITAELooker:
+                              steps:
+                                - logCreateINVITAELooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for INVITAE Looker"}
+                                - runINVITAELooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "invitae-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 invitae_specimen invitae_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getINVITAELookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "invitae-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getINVITAELookerResult
+                                - logINVITAELookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current INVITAE Looker job state " + getINVITAELookerResult.body.status.state}
+                                - checkINVITAELookerState:
+                                    switch:
+                                      - condition: ${getINVITAELookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getINVITAELookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepINVITAELooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getINVITAELookerJob
+                          - processINVITAELDS:  
+                              steps:
+                                - logCreateINVITAELDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for INVITAE LDS"}
+                                - runINVITAELDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "invitae-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 invitae_specimen invitae_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ invitae_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getINVITAELDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "invitae-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getINVITAELDSResult
+                                - logINVITAELDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current INVITAE LDS job state " + getINVITAELDSResult.body.status.state}
+                                - checkINVITAELDSState:
+                                    switch:
+                                      - condition: ${getINVITAELDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getINVITAELDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepINVITAELDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getINVITAELDSJob
+                          - processPANGEALooker:
+                              steps:
+                                - logCreatePANGEALooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for PANGEA Looker"}
+                                - runPANGEALooker:    
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "pangea-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 pangea_specimen pangea_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getPANGEALookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "pangea-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getPANGEALookerResult
+                                - logPANGEALookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current PANGEA Looker job state " + getPANGEALookerResult.body.status.state}
+                                - checkPANGEALookerState:
+                                    switch:
+                                      - condition: ${getPANGEALookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getPANGEALookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepPANGEALooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getPANGEALookerJob
+                          - processPANGEALDS:
+                              steps:
+                                - logCreatePANGEALDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for PANGEA LDS"}
+                                - runPANGEALDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "pangea-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 pangea_specimen pangea_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ pangea_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getPANGEALDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "pangea-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getPANGEALDSResult
+                                - logPANGEALDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current PANGEA LDS job state " + getPANGEALDSResult.body.status.state}
+                                - checkPANGEALDSState:
+                                    switch:
+                                      - condition: ${getPANGEALDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getPANGEALDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepPANGEALDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getPANGEALDSJob
+                          - processUCIGHTFLooker:
+                              steps:
+                                - logCreateUCIGHTFLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCI_GHTF Looker"}
+                                - runUCIGHTFLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "uci-ghtf-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 uci_ghtf_specimen uci_ghtf_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCIGHTFLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "uci-ghtf-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCIGHTFLookerResult
+                                - logUCIGHTFLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCI_GHTF Looker job state " + getUCIGHTFLookerResult.body.status.state}
+                                - checkUCIGHTFLookerState:
+                                    switch:
+                                      - condition: ${getUCIGHTFLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCIGHTFLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCIGHTFLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCIGHTFLookerJob                    
+                          - processUCIGHTFLDS:
+                              steps:
+                                - logCreateUCIGHTFLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCI_GHTF LDS"}
+                                - runUCIGHTFLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "uci-ghtf-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 uci_ghtf_specimen uci_ghtf_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ uci_ghtf_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCIGHTFLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "uci-ghtf-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCIGHTFLDSResult
+                                - logUCIGHTFLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCI_GHTF LDS job state " + getUCIGHTFLDSResult.body.status.state}
+                                - checkUCIGHTFLDSState:
+                                    switch:
+                                      - condition: ${getUCIGHTFLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCIGHTFLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCIGHTFLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCIGHTFLDSJob
+                          - processUCLADIAGLooker:
+                              steps:
+                                - logCreateUCLADIAGLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCLA_DIAG Looker"}
+                                - runUCLADIAGLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucla-diag-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_diag_specimen ucla_diag_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCLADIAGLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucla-diag-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCLADIAGLookerResult
+                                - logUCLADIAGLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCLA_DIAG Looker job state " + getUCLADIAGLookerResult.body.status.state}
+                                - checkUCLADIAGLookerState:
+                                    switch:
+                                      - condition: ${getUCLADIAGLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCLADIAGLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCLADIAGLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCLADIAGLookerJob
+                          - processUCLADIAGLDS:
+                              steps:
+                                - logCreateUCLADIAGLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCLA_DIAG LDS"}
+                                - runUCLADIAGLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucla-diag-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_diag_specimen ucla_diag_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucla_diag_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCLADIAGLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucla-diag-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCLADIAGLDSResult
+                                - logUCLADIAGLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCLA_DIAG LDS job state " + getUCLADIAGLDSResult.body.status.state}
+                                - checkUCLADIAGLDSState:
+                                    switch:
+                                      - condition: ${getUCLADIAGLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCLADIAGLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCLADIAGLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCLADIAGLDSJob
+            - updateUCLAESKINtoUCR:
+                steps:
+                  - childUpdateUCLAESKINtoUCR:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - processUCLAESKINLooker:
+                              steps:
+                                - logCreateUCLAESKINLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCLA_ESKIN Looker"}
+                                - runUCLAESKINLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucla-eskin-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_eskin_specimen ucla_eskin_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCLAESKINLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucla-eskin-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCLAESKINLookerResult
+                                - logUCLAESKINLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCLA_ESKIN Looker job state " + getUCLAESKINLookerResult.body.status.state}
+                                - checkUCLAESKINLookerState:
+                                    switch:
+                                      - condition: ${getUCLAESKINLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCLAESKINLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCLAESKINLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCLAESKINLookerJob
+                          - processUCLAESKINLDS:
+                              steps:
+                                - logCreateUCLAESKINLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCLA_ESKIN LDS"}
+                                - runUCLAESKINLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucla-eskin-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucla_eskin_specimen ucla_eskin_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucla_eskin_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCLAESKINLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucla-eskin-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCLAESKINLDSResult
+                                - logUCLAESKINLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCLA_ESKIN LDS job state " + getUCLAESKINLDSResult.body.status.state}
+                                - checkUCLAESKINLDSState:
+                                    switch:
+                                      - condition: ${getUCLAESKINLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCLAESKINLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCLAESKINLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCLAESKINLDSJob
+                          - processUCSCLooker:
+                              steps:
+                                - logCreateUCSCLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSC Looker"}
+                                - runUCSCLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsc-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSCLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsc-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSCLookerResult
+                                - logUCSCLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSC Looker job state " + getUCSCLookerResult.body.status.state}
+                                - checkUCSCLookerState:
+                                    switch:
+                                      - condition: ${getUCSCLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSCLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSCLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSCLookerJob
+                          - processUCSCLDS:
+                              steps:
+                                - logCreateUCSCLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSC LDS"}
+                                - runUCSCLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsc-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsc_specimen ucsc_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsc_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSCLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsc-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSCLDSResult
+                                - logUCSCLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSC LDS job state " + getUCSCLDSResult.body.status.state}
+                                - checkUCSCLDSState:
+                                    switch:
+                                      - condition: ${getUCSCLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSCLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSCLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSCLDSJob
+                          - processUCSBARIASLooker:
+                              steps:
+                                - logCreateUCSBARIASLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSB ARIAS Looker"}
+                                - runUCSBARIASLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsb-arias-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsb_arias_specimen ucsb_arias_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSBARIASLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsb-arias-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSBARIASLookerResult
+                                - logUCSBARIASLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSB ARIAS Looker job state " + getUCSBARIASLookerResult.body.status.state}
+                                - checkUCSBARIASLookerState:
+                                    switch:
+                                      - condition: ${getUCSBARIASLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSBARIASLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSBARIASLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSBARIASLookerJob
+                          - processUCSBARIASLDS:
+                              steps:
+                                - logCreateUCSBARIASLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSB ARIAS LDS"}
+                                - runUCSBARIASLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsb-arias-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsb_arias_specimen ucsb_arias_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsb_arias_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSBARIASLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsb-arias-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSBARIASLDSResult
+                                - logUCSBARIASLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSB ARIAS LDS job state " + getUCSBARIASLDSResult.body.status.state}
+                                - checkUCSBARIASLDSState:
+                                    switch:
+                                      - condition: ${getUCSBARIASLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSBARIASLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSBARIASLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSBARIASLDSJob
+                          - processUCSFCHIULooker:
+                              steps:
+                                - logCreateUCSFCHIULooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSF CHIU Looker"}
+                                - runUCSFCHIULooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsf-chiu-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsf_chiu_specimen ucsf_chiu_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSFCHIULookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsf-chiu-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSFCHIULookerResult
+                                - logUCSFCHIULookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSF CHIU Looker job state " + getUCSFCHIULookerResult.body.status.state}
+                                - checkUCSFCHIULookerState:
+                                    switch:
+                                      - condition: ${getUCSFCHIULookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSFCHIULookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSFCHIULooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSFCHIULookerJob
+                          - processUCSFCHIULDS:
+                              steps:
+                                - logCreateUCSFCHIULDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCSF CHIU LDS"}
+                                - runUCSFCHIULDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucsf-chiu-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucsf_chiu_specimen ucsf_chiu_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucsf_chiu_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCSFCHIULDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucsf-chiu-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCSFCHIULDSResult
+                                - logUCSFCHIULDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCSF CHIU LDS job state " + getUCSFCHIULDSResult.body.status.state}
+                                - checkUCSFCHIULDSState:
+                                    switch:
+                                      - condition: ${getUCSFCHIULDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCSFCHIULDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCSFCHIULDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCSFCHIULDSJob
+                          - processUCRLooker:
+                              steps:
+                                - logCreateUCRLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCR Looker"}
+                                - runUCRLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucr-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucr_specimen ucr_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCRLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucr-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCRLookerResult
+                                - logUCRLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCR Looker job state " + getUCRLookerResult.body.status.state}
+                                - checkUCRLookerState:
+                                    switch:
+                                      - condition: ${getUCRLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCRLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCRLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCRLookerJob
+                          - processUCRLDS:
+                              steps:
+                                - logCreateUCRLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for UCR LDS"}
+                                - runUCRLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "ucr-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 ucr_specimen ucr_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ ucr_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getUCRLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "ucr-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getUCRLDSResult
+                                - logUCRLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current UCR LDS job state " + getUCRLDSResult.body.status.state}
+                                - checkUCRLDSState:
+                                    switch:
+                                      - condition: ${getUCRLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getUCRLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepUCRLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getUCRLDSJob
+            - updateVBLs:
+                steps:
+                  - childUpdateVBLs:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - processVBLCOMBINEDLooker:
+                              steps:
+                                - logCreateVBLCOMBINEDLooker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_COMBINED Looker"}
+                                - runVBLCOMBINEDLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-combined-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_combined_specimen vbl_combined_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLCOMBINEDLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-combined-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLCOMBINEDLookerResult
+                                - logVBLCOMBINEDLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_COMBINED Looker job state " + getVBLCOMBINEDLookerResult.body.status.state}
+                                - checkVBLCOMBINEDLookerState:
+                                    switch:
+                                      - condition: ${getVBLCOMBINEDLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLCOMBINEDLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLCOMBINEDLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLCOMBINEDLookerJob
+                          - processVBLCOMBINEDLDS:
+                              steps:
+                                - logCreateVBLCOMBINEDLDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_COMBINED LDS"}
+                                - runVBLCOMBINEDLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-combined-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_combined_specimen vbl_combined_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ vbl_combined_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLCOMBINEDLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-combined-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLCOMBINEDLDSResult
+                                - logVBLCOMBINEDLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_COMBINED LDS job state " + getVBLCOMBINEDLDSResult.body.status.state}
+                                - checkVBLCOMBINEDLDSState:
+                                    switch:
+                                      - condition: ${getVBLCOMBINEDLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLCOMBINEDLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLCOMBINEDLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLCOMBINEDLDSJob
+                          - processVBLPART2Looker:
+                              steps:
+                                - logCreateVBLPART2Looker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_PART2 Looker"}
+                                - runVBLPART2Looker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-part2-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_part2_specimen vbl_part2_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLPART2LookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-part2-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLPART2LookerResult
+                                - logVBLPART2LookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_PART2 Looker job state " + getVBLPART2LookerResult.body.status.state}
+                                - checkVBLPART2LookerState:
+                                    switch:
+                                      - condition: ${getVBLPART2LookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLPART2LookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLPART2Looker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLPART2LookerJob    
+                          - processVBLPART2LDS:
+                              steps:
+                                - logCreateVBLPART2LDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_PART2 LDS"}
+                                - runVBLPART2LDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-part2-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_part2_specimen vbl_part2_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ vbl_part2_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLPART2LDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-part2-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLPART2LDSResult
+                                - logVBLPART2LDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_PART2 LDS job state " + getVBLPART2LDSResult.body.status.state}
+                                - checkVBLPART2LDSState:
+                                    switch:
+                                      - condition: ${getVBLPART2LDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLPART2LDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLPART2LDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLPART2LDSJob
+                          - processVBLPART3Looker:
+                              steps:
+                                - logCreateVBLPART3Looker:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_PART3 Looker"}
+                                - runVBLPART3Looker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-part3-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_part3_specimen vbl_part3_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLPART3LookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-part3-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLPART3LookerResult
+                                - logVBLPART3LookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_PART3 Looker job state " + getVBLPART3LookerResult.body.status.state}
+                                - checkVBLPART3LookerState:
+                                    switch:
+                                      - condition: ${getVBLPART3LookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLPART3LookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLPART3Looker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLPART3LookerJob
+                          - processVBLPART3LDS:
+                              steps:
+                                - logCreateVBLPART3LDS:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Creating and running the batch jobs for VBL_PART3 LDS"}
+                                - runVBLPART3LDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vbl-part3-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_CDPH_Master_clone_2021-08-24 vbl_part3_specimen vbl_part3_specimen_GDS gs://cdph-terra-dashboard-bucket/dashboard/ vbl_part3_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVBLPART3LDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vbl-part3-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2       
+                                    result: getVBLPART3LDSResult
+                                - logVBLPART3LDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VBL_PART3 LDS job state " + getVBLPART3LDSResult.body.status.state}
+                                - checkVBLPART3LDSState:
+                                    switch:
+                                      - condition: ${getVBLPART3LDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVBLPART3LDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                - sleepVBLPART3LDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVBLPART3LDSJob 
+    - logEnd:
+        call: sys.log
+        args:
+          data: ${ "All batches completed at " + string(int(sys.now()))}

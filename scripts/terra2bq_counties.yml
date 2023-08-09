@@ -1,0 +1,1417 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - timeStamp: ${string(int(sys.now()))}
+    - updateCountyTables:
+        parallel:
+          shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+          branches:
+            - updateDASHBOARDtoCOUNTY:
+                steps:
+                  - childUpdateDASHBOARDtoCOUNTY:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:        
+                          - runDASHBOARD:
+                              steps:
+                                - runDASHBOARDspecimenLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "dashboard-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL dashboard_specimen dashboard_specimen gs://cdph-terra-dashboard-bucket/dashboard/ vrdl_dashboard_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getDASHBOARDspecimenLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "dashboard-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getDASHBOARDspecimenLDSResult
+                                - logDASHBOARDspecimenLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current DASHBOARD specimen LDS job state " + getDASHBOARDspecimenLDSResult.body.status.state}
+                                - checkDASHBOARDspecimenLDSState:
+                                    switch:
+                                      - condition: ${getDASHBOARDspecimenLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getDASHBOARDspecimenLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepDASHBOARDspecimenLDS
+                                - sleepDASHBOARDspecimenLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getDASHBOARDspecimenLDSJob
+                          - runCOUNTY:
+                              steps:
+                                - runCOUNTYspecimenLDS:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "county-lds-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_County_Labs_Master county_specimen_updated county_specimen_master gs://cdph-terra-dashboard-bucket/dashboard/ county_specimen"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getCOUNTYspecimenLDSJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "county-lds-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getCOUNTYspecimenLDSResult
+                                - logCOUNTYspecimenLDSState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current COUNTY specimen LDS job state " + getCOUNTYspecimenLDSResult.body.status.state}
+                                - checkCOUNTYspecimenLDSState:
+                                    switch:
+                                      - condition: ${getCOUNTYspecimenLDSResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getCOUNTYspecimenLDSResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepCOUNTYspecimenLDS
+                                - sleepCOUNTYspecimenLDS:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getCOUNTYspecimenLDSJob
+            - updateALAMEDAtoORANGE:
+                steps:
+                  - childUpdateALAMEDAtoORANGE:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - runCLALAMEDA:
+                              steps:
+                                - runCLALAMEDAspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "cl-alameda-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Alameda clearlabs_specimen clearlabs_specimen_Alameda gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getCLALAMEDAspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "cl-alameda-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getCLALAMEDAspecimenLookerResult
+                                - logCLALAMEDAspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current CL_ALAMEDA specimen looker job state " + getCLALAMEDAspecimenLookerResult.body.status.state}
+                                - checkCLALAMEDAspecimenLookerState:
+                                    switch:
+                                      - condition: ${getCLALAMEDAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getCLALAMEDAspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepCLALAMEDAspecimenLooker
+                                - sleepCLALAMEDAspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getCLALAMEDAspecimenLookerJob
+                          - runSAMPLECC:
+                              steps:
+                                - runSAMPLECCspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-cc-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_ContraCosta sample sample_ContraCosta gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLECCspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-cc-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLECCspecimenLookerResult
+                                - logSAMPLECCspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_CC specimen looker job state " + getSAMPLECCspecimenLookerResult.body.status.state}
+                                - checkSAMPLECCspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLECCspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLECCspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLECCspecimenLooker
+                                - sleepSAMPLECCspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLECCspecimenLookerJob
+                          - runMISEQLA:
+                              steps:
+                                - runMISEQLAspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miseq-la-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles miseq_specimens miseq_specimens_LA gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMISEQLAspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miseq-la-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMISEQLAspecimenLookerResult
+                                - logMISEQLAspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MISEQ_LA specimen looker job state " + getMISEQLAspecimenLookerResult.body.status.state}
+                                - checkMISEQLAspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMISEQLAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMISEQLAspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMISEQLAspecimenLooker
+                                - sleepMISEQLAspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMISEQLAspecimenLookerJob
+                          - runNEXTSEQLA:
+                              steps:
+                                - runNEXTSEQLAspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "nextseq-la-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles nextseq_specimens nextseq_LA gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getNEXTSEQLAspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "nextseq-la-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getNEXTSEQLAspecimenLookerResult
+                                - logNEXTSEQLAspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current NEXTSEQ_LA specimen looker job state " + getNEXTSEQLAspecimenLookerResult.body.status.state}
+                                - checkNEXTSEQLAspecimenLookerState:
+                                    switch:
+                                      - condition: ${getNEXTSEQLAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getNEXTSEQLAspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepNEXTSEQLAspecimenLooker
+                                - sleepNEXTSEQLAspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getNEXTSEQLAspecimenLookerJob
+                          - runSAMPLELA:
+                              steps:
+                                - runSAMPLELAspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-la-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_LosAngeles sample sample_LA gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLELAspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-la-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLELAspecimenLookerResult
+                                - logSAMPLELAspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_LA specimen looker job state " + getSAMPLELAspecimenLookerResult.body.status.state}
+                                - checkSAMPLELAspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLELAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLELAspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLELAspecimenLooker
+                                - sleepSAMPLELAspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLELAspecimenLookerJob
+                          - runCLMONTEREY:
+                              steps:       
+                                - runCLMONTEREYspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "cl-monterey-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Monterey clearlabs_specimen clearlabs_specimen_Monterey gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getCLMONTEREYspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "cl-monterey-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getCLMONTEREYspecimenLookerResult
+                                - logCLMONTEREYspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current CL_MONTEREY specimen looker job state " + getCLMONTEREYspecimenLookerResult.body.status.state}
+                                - checkCLMONTEREYspecimenLookerState:
+                                    switch:
+                                      - condition: ${getCLMONTEREYspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getCLMONTEREYspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepCLMONTEREYspecimenLooker
+                                - sleepCLMONTEREYspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getCLMONTEREYspecimenLookerJob
+                          - runSAMPLENSYM:
+                              steps:          
+                                - runSAMPLENSYMspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-nsym-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_NSYM sample sample_NSYM gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLENSYMspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-nsym-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLENSYMspecimenLookerResult
+                                - logSAMPLENSYMspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_NSYM specimen looker job state " + getSAMPLENSYMspecimenLookerResult.body.status.state}
+                                - checkSAMPLENSYMspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLENSYMspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLENSYMspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLENSYMspecimenLooker
+                                - sleepSAMPLENSYMspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLENSYMspecimenLookerJob
+                          - runFULGENTOR:
+                              steps:     
+                                - runFULGENTORspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "fulgent-or-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange Fulgent_specimen Fulgent_specimen_Orange gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getFULGENTORspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "fulgent-or-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getFULGENTORspecimenLookerResult
+                                - logFULGENTORspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current FULGENT_OR specimen looker job state " + getFULGENTORspecimenLookerResult.body.status.state}
+                                - checkFULGENTORspecimenLookerState:
+                                    switch:
+                                      - condition: ${getFULGENTORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getFULGENTORspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepFULGENTORspecimenLooker
+                                - sleepFULGENTORspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getFULGENTORspecimenLookerJob
+                          - runGRIDIONOR:
+                              steps:
+                                - runGRIDIONORspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "gridion-or-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange gridion_specimen gridion_specimen_Orange gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getGRIDIONORspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "gridion-or-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getGRIDIONORspecimenLookerResult
+                                - logGRIDIONORspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current GRIDION_OR specimen looker job state " + getGRIDIONORspecimenLookerResult.body.status.state}
+                                - checkGRIDIONORspecimenLookerState:
+                                    switch:
+                                      - condition: ${getGRIDIONORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getGRIDIONORspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepGRIDIONORspecimenLooker
+                                - sleepGRIDIONORspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getGRIDIONORspecimenLookerJob
+                          - runMISEQOR:
+                              steps:
+                                - runMISEQORspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miseq-or-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Orange miseq_specimen miseq_specimen_Orange gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMISEQORspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miseq-or-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMISEQORspecimenLookerResult
+                                - logMISEQORspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MISEQ_OR specimen looker job state " + getMISEQORspecimenLookerResult.body.status.state}
+                                - checkMISEQORspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMISEQORspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMISEQORspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMISEQORspecimenLooker
+                                - sleepMISEQORspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMISEQORspecimenLookerJob
+            - updateSACRAMENTOtoSONOMA:
+                steps:
+                  - childUpdateSACRAMENTOtoSONOMA:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - runILLUMINASAC:
+                              steps:
+                                - runILLUMINASACspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "illumina-sac-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Sacramento illumina_specimen illumina_specimen_Sacramento gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getILLUMINASACspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "illumina-sac-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getILLUMINASACspecimenLookerResult
+                                - logILLUMINASACspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current ILLUMINA_SAC specimen looker job state " + getILLUMINASACspecimenLookerResult.body.status.state}
+                                - checkILLUMINASACspecimenLookerState:
+                                    switch:
+                                      - condition: ${getILLUMINASACspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getILLUMINASACspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepILLUMINASACspecimenLooker
+                                - sleepILLUMINASACspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getILLUMINASACspecimenLookerJob
+                          - runILLUMINASB:
+                              steps:
+                                - runILLUMINASBspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "illumina-sb-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanBernardino illumina_specimen illumina_specimen_SanBernardino gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getILLUMINASBspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "illumina-sb-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getILLUMINASBspecimenLookerResult
+                                - logILLUMINASBspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current ILLUMINA_SB specimen looker job state " + getILLUMINASBspecimenLookerResult.body.status.state}
+                                - checkILLUMINASBspecimenLookerState:
+                                    switch:
+                                      - condition: ${getILLUMINASBspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getILLUMINASBspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepILLUMINASBspecimenLooker
+                                - sleepILLUMINASBspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getILLUMINASBspecimenLookerJob
+                          - runMISEQSC:
+                              steps:
+                                - runMISEQSCspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miseq-sc-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SantaClara miseq_specimen miseq_specimen_SantaClara gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMISEQSCspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miseq-sc-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMISEQSCspecimenLookerResult
+                                - logMISEQSCspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MISEQ_SC specimen looker job state " + getMISEQSCspecimenLookerResult.body.status.state}
+                                - checkMISEQSCspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMISEQSCspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMISEQSCspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMISEQSCspecimenLooker
+                                - sleepMISEQSCspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMISEQSCspecimenLookerJob
+                          - runMISEQSD:
+                              steps:
+                                - runMISEQSDspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miseq-sd-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanDiego miseq_specimen miseq_specimen_SanDiego gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMISEQSDspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miseq-sd-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMISEQSDspecimenLookerResult
+                                - logMISEQSDspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MISEQ_SD specimen looker job state " + getMISEQSDspecimenLookerResult.body.status.state}
+                                - checkMISEQSDspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMISEQSDspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMISEQSDspecimenLooker
+                                - sleepMISEQSDspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMISEQSDspecimenLookerJob
+                          - runSAMPLESF:
+                              steps:
+                                - runSAMPLESFspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-sf-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SanFrancisco sample sample_SanFrancisco gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLESFspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-sf-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLESFspecimenLookerResult
+                                - logSAMPLESFspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_SF specimen looker job state " + getSAMPLESFspecimenLookerResult.body.status.state}
+                                - checkSAMPLESFspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLESFspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLESFspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLESFspecimenLooker
+                                - sleepSAMPLESFspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLESFspecimenLookerJob
+                          - runSJCPHL:
+                              steps:
+                                - runSJCPHLspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sjcphl-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-Cov-2_SanJoaquin SJCPHL SJCPHL_SJ gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSJCPHLspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sjcphl-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSJCPHLspecimenLookerResult
+                                - logSJCPHLspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SJCPHL specimen looker job state " + getSJCPHLspecimenLookerResult.body.status.state}
+                                - checkSJCPHLspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSJCPHLspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSJCPHLspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSJCPHLspecimenLooker
+                                - sleepSJCPHLspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSJCPHLspecimenLookerJob
+                          - runMINISEQSLO:
+                              steps:
+                                - runMINISEQSLOspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miniseq-slo-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SLO miniseq_specimen miniseq_specimen_SLO gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMINISEQSLOspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miniseq-slo-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMINISEQSLOspecimenLookerResult
+                                - logMINISEQSLOspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MINISEQ_SLO specimen looker job state " + getMINISEQSLOspecimenLookerResult.body.status.state}
+                                - checkMINISEQSLOspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMINISEQSLOspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMINISEQSLOspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMINISEQSLOspecimenLooker
+                                - sleepMINISEQSLOspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMINISEQSLOspecimenLookerJob
+                          - runSAMPLESLO:
+                              steps:
+                                - runSAMPLESLOspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-slo-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_SLO sample sample_SLO gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLESLOspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-slo-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLESLOspecimenLookerResult
+                                - logSAMPLESLOspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_SLO specimen looker job state " + getSAMPLESLOspecimenLookerResult.body.status.state}
+                                - checkSAMPLESLOspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLESLOspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLESLOspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLESLOspecimenLooker
+                                - sleepSAMPLESLOspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLESLOspecimenLookerJob
+                          - runSAMPLESONOMA:
+                              steps:
+                                - runSAMPLESONOMAspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-sonoma-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Sonoma sample sample_Sonoma gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLESONOMAspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-sonoma-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLESONOMAspecimenLookerResult
+                                - logSAMPLESONOMAspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_SONOMA specimen looker job state " + getSAMPLESONOMAspecimenLookerResult.body.status.state}
+                                - checkSAMPLESONOMAspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLESONOMAspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLESONOMAspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLESONOMAspecimenLooker
+                                - sleepSAMPLESONOMAspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLESONOMAspecimenLookerJob
+            - updateTULAREtoVRDL:
+                steps:
+                  - childUpdateTULAREtoVRDL:
+                      parallel:
+                        shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+                        branches:
+                          - runMINISEQTUL:
+                              steps:
+                                - runMINISEQTULspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "miniseq-tul-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Tulare MiniSeq_specimen MiniSeq_specimen_Tulare gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getMINISEQTULspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "miniseq-tul-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getMINISEQTULspecimenLookerResult
+                                - logMINISEQTULspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current MINISEQ_TUL specimen looker job state " + getMINISEQTULspecimenLookerResult.body.status.state}
+                                - checkMINISEQTULspecimenLookerState:
+                                    switch:
+                                      - condition: ${getMINISEQTULspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getMINISEQTULspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepMINISEQTULspecimenLooker
+                                - sleepMINISEQTULspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getMINISEQTULspecimenLookerJob
+                          - runNEXTSEQTUL:
+                              steps:
+                                - runNEXTSEQTULspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "nextseq-tul-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_SARS-CoV-2_Tulare tulare_nextseq_samples NextSeq_specimen_Tulare gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getNEXTSEQTULspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl+ "/" + "nextseq-tul-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getNEXTSEQTULspecimenLookerResult
+                                - logNEXTSEQTULspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current NEXTSEQ_TUL specimen looker job state " + getNEXTSEQTULspecimenLookerResult.body.status.state}
+                                - checkNEXTSEQTULspecimenLookerState:
+                                    switch:
+                                      - condition: ${getNEXTSEQTULspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getNEXTSEQTULspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepNEXTSEQTULspecimenLooker
+                                - sleepNEXTSEQTULspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getNEXTSEQTULspecimenLookerJob
+                          - runSAMPLEVRDL:
+                              steps:
+                                - runSAMPLEVRDLspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "sample-vrdl-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL sample sample_VRDL gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getSAMPLEVRDLspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "sample-vrdl-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getSAMPLEVRDLspecimenLookerResult
+                                - logSAMPLEVRDLspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current SAMPLE_VRDL specimen looker job state " + getSAMPLEVRDLspecimenLookerResult.body.status.state}
+                                - checkSAMPLEVRDLspecimenLookerState:
+                                    switch:
+                                      - condition: ${getSAMPLEVRDLspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getSAMPLEVRDLspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepSAMPLEVRDLspecimenLooker
+                                - sleepSAMPLEVRDLspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getSAMPLEVRDLspecimenLookerJob
+                          - runVRDLVPD:
+                              steps:
+                                - runVRDLVPDspecimenLooker:
+                                    call: http.post
+                                    args:
+                                      url: ${batchApiUrl}
+                                      query:
+                                        job_id: ${ "vrdl-vpd-looker-" + timeStamp}
+                                      headers:
+                                        Content-Type: application/json
+                                      auth:
+                                        type: OAuth2
+                                      body:
+                                        taskGroups:
+                                          - taskSpec:
+                                              runnables:
+                                                - container:
+                                                    imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                                    entrypoint: "/bin/bash"
+                                                    volumes:
+                                                      - "/mnt/disks/terra_2_bq_cdph:/data"
+                                                      - "/mnt/disks/terra_2_bq_cdph/.config:/.config"
+                                                    commands:
+                                                      - "-c"
+                                                      - ${ "bash terra2bq.sh cdph-terrabio-taborda-manual dataAnalysis_VRDL vrdl_vpd_specimen vrdl_vpd_specimen gs://terra-bq-processing/ date"}
+                                              volumes:
+                                                - gcs:
+                                                    remotePath: "terra_2_bq_cdph"
+                                                  mountPath: "/mnt/disks/terra_2_bq_cdph"
+                                            taskCount: 1
+                                        logsPolicy:
+                                          destination: CLOUD_LOGGING
+                                - getVRDLVPDspecimenLookerJob:
+                                    call: http.get
+                                    args:
+                                      url: ${batchApiUrl + "/" + "vrdl-vpd-looker-" + timeStamp}
+                                      auth:
+                                        type: OAuth2
+                                    result: getVRDLVPDspecimenLookerResult
+                                - logVRDLVPDspecimenLookerState:
+                                    call: sys.log
+                                    args:
+                                      data: ${ "Current VRDL_VPD specimen looker job state " + getVRDLVPDspecimenLookerResult.body.status.state}
+                                - checkVRDLVPDspecimenLookerState:
+                                    switch:
+                                      - condition: ${getVRDLVPDspecimenLookerResult.body.status.state == "SUCCEEDED"}
+                                        next: continue
+                                      - condition: ${getVRDLVPDspecimenLookerResult.body.status.state == "FAILED"}
+                                        next: continue
+                                    next: sleepVRDLVPDspecimenLooker
+                                - sleepVRDLVPDspecimenLooker:
+                                    call: sys.sleep
+                                    args:
+                                      seconds: 10
+                                    next: getVRDLVPDspecimenLookerJob
+    - logEnd:
+        call: sys.log
+        args:
+          data: ${ "All batches completed at " + string(int(sys.now()))}
