@@ -4,11 +4,11 @@ set -e
 # filename: standard_dashboard.sh
 # authors: Sage Wright, Kevin Libuit, Frank Ambrosio
 
-VERSION="Google Dashboarding v0.1"
+VERSION="Google Dashboarding v0.2"
 
 showHelp() {
 cat << EOF
-Google Dashboarding v0.1 
+Google Dashboarding v0.2 
 This script is configured to work within a Google Batch job managed by a Google Workflow and Trigger. 
 The following variables need to be passed in as input parameters. 
 CAUTION: The entire command length must be under 400 characters; using the short version of arguments is recommended
@@ -29,13 +29,13 @@ Usage: ./standard_dashboard.sh
 	[ -q | --big-query-table-name ] the name of the big query table to upload to ("sars_cov_2_dashboard.workflow_la_state_gisaid_specimens_test")
 	[ -m | --puerto-rico ] apply Puerto Rico-specific changes. available options: true or false
 	[ -i | --input-tar-file ] the tar file given to the script by the Google Trigger
-
+  [ -k | --skip-bq-load ] skips the bq load step. available options: true or false
 Happy dashboarding!
 EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:" -a -- "$@")
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:k:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:" -a -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
 
@@ -71,6 +71,8 @@ while true; do
       puerto_rico=$2; shift 2;;
     -i|--input-tar-file)
       input_tar_file=$2; shift 2;;
+    -k|--skip-bq-load)
+      skip_bq_load=$2; shift 2;;
     --) shift; break ;;
       *) echo "Unexpected option: $1 -- this should not happen."; exit 1;;
   esac
@@ -136,12 +138,12 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Deposit individual fasta files into Terra GCP bucket
   \n
-  gsutil -m cp ${gisaid_dir}/individual_gisaid_assemblies_$(date -I)/*.fasta ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I)/
+  gsutil -m cp ${gisaid_dir}/individual_gisaid_assemblies_${date_tag}/*.fasta ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/
   \n
   \n
   # Create and import Terra Data table containing GCP pointers to deposited assemblies
   \n
-  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_$(date -I) ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" $(date -I)
+  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
   \n
   \n
   # Capture, reformat, and prune GISAID metadata
@@ -154,6 +156,38 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
   \n
   \n
+  if ${skip_bq_load} ; then
+  \n
+  # Make a set table
+  \n
+  /scripts/make_set_table.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
+  \n
+  \n
+  # Run TheiaCoV_FASTA on the set
+  \n
+  TOKEN=`gcloud auth print-access-token`
+  \n
+  curl -X 'POST' \
+    'https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions' \
+    -H 'accept: */*' \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d \"{
+    \"methodConfigurationNamespace\": \"${terra_project}\",
+    \"methodConfigurationName\": \"TheiaCoV_FASTA_PHB\",
+    \"entityType\": \"${terra_table_root_entity}_set\",
+    \"entityName\": \"${date_tag}-set\",
+    \"expression\": \"this.${terra_table_root_entity}s\",
+    \"useCallCache\": true,
+    \"deleteIntermediateOutputFiles\": false,
+    \"useReferenceDisks\": false,
+    \"memoryRetryMultiplier\": 1,
+    \"workflowFailureMode\": \"NoNewCalls\",
+    \"userComment\": \"${date_tag}-set automatically launched\"
+    }\"
+  \n
+  \n
+  else 
   # Capture the entire Terra data table as a tsv
   \n
   python3 /scripts/export_large_tsv/export_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --entity_type ${terra_table_root_entity} --tsv_filename ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv
@@ -174,6 +208,8 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   # Load newline json to Big Query 
   \n
   bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
+  \n
+  fi
   \n
   \n
   "
