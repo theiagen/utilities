@@ -1,0 +1,73 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - jobId: ${ "helix-gisaid-" + string(int(sys.now()))}
+          - newFile: ${args.data.name}
+    - logCreateBatchJob:
+        call: sys.log
+        args:
+          data: ${ "Creating and running the batch job " + jobId}
+    - createAndRunBatchJob:
+        call: http.post
+        args:
+          url: ${batchApiUrl}
+          query:
+            job_id: ${jobId}
+          headers:
+            Content-Type: application/json
+          auth:
+            type: OAuth2
+          body:
+            taskGroups:
+              - taskSpec:
+                  runnables:
+                    - container:
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                        entrypoint: "/bin/bash"
+                        volumes:
+                          - "/mnt/disks/cdph_helix_gisaid_staging:/data"
+                          - "/mnt/disks/cdph_helix_gisaid_staging/.config:/.config"
+                        commands:
+                          - "-c"
+                          - ${ "bash /data/standard-dashboard.sh -d gs://cdph_helix_gisaid_staging -s no -b /data/input_gisaid -o /data -t gs://cdph_helix_gisaid -g gs://fc-6f47810a-0cc3-4e68-b8f0-12cde24d5893 -r helix_gisaid -p cdc-terrabio-taborda-manual -w dataAnalysis_SARS-CoV-2_Helix -q no -m false -i " + newFile + " -k true"}
+                  volumes:
+                    - gcs:
+                        remotePath: "cdph_helix_gisaid_staging"
+                      mountPath: "/mnt/disks/cdph_helix_gisaid_staging"
+                taskCount: 1
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: createAndRunBatchJobResponse
+    - getJob:
+        call: http.get
+        args:
+          url: ${batchApiUrl + "/" + jobId}
+          auth:
+            type: OAuth2
+        result: getJobResult
+    - logState:
+        call: sys.log
+        args:
+          data: ${ "Current job state " + getJobResult.body.status.state}
+    - checkState:
+        switch:
+          - condition: ${getJobResult.body.status.state == "SUCCEEDED"}
+            next: returnResult
+          - condition: ${getJobResult.body.status.state == "FAILED"}
+            next: returnResult
+        next: sleep
+    - sleep:
+        call: sys.sleep
+        args:
+          seconds: 10
+        next: getJob
+    - returnResult:
+        return:
+          jobId: ${jobId}
+          status: "OK"

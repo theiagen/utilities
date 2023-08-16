@@ -35,7 +35,7 @@ EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:k:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:" -a -- "$@")
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:s:b:o:t:g:r:p:w:q:m:i:k:" -l "version,help,dashboard-gcp-uri:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:" -a -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
 
@@ -47,8 +47,6 @@ while true; do
       showHelp; exit 0;;
     -d|--dashboard-gcp-uri)
       dashboard_gcp_uri=$2; shift 2;;
-    -j|--dashboard-newline-json)
-      dashboard_newline_json=$2; shift 2;;
     -s|--dashboard_schema)
       dashboard_schema=$2; shift 2;;
     -b|--gisaid-backup-dir)
@@ -102,7 +100,7 @@ make_directory ${output_dir}/backup_jsons
 
 # echo the variables that were provided
 echo -e "Dashboarding Automated System initiated at ${date_tag}\n" | tee ${output_dir}/automation_logs/dashboard-${date_tag}.log
-echo -e "Input variables:\ndashboard_gcp_uri: ${dashboard_gcp_uri},\ndashboard_newline_json: ${dashboard_newline_json},\ndashboard_bq_load_schema: ${dashboard_schema},\ngisaid_backup_dir: ${gisaid_backup_dir},\nmounted_output_dir: ${output_dir},\ntrigger_bucket_gcp_uri: ${trigger_bucket},\nterra_gcp_uri: ${terra_gcp_uri},\nterra_table_root_entity: ${terra_table_root_entity},\nterra_project: ${terra_project},\nterra_workspace: ${terra_workspace},\nbig_query_table_name: ${big_query_table_name}\n" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo -e "Input variables:\ndashboard_gcp_uri: ${dashboard_gcp_uri},\ndashboard_bq_load_schema: ${dashboard_schema},\ngisaid_backup_dir: ${gisaid_backup_dir},\nmounted_output_dir: ${output_dir},\ntrigger_bucket_gcp_uri: ${trigger_bucket},\nterra_gcp_uri: ${terra_gcp_uri},\nterra_table_root_entity: ${terra_table_root_entity},\nterra_project: ${terra_project},\nterra_workspace: ${terra_workspace},\nbig_query_table_name: ${big_query_table_name}\n" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
 
 # take in file as input from trigger
 file=${trigger_bucket}/${input_tar_file}
