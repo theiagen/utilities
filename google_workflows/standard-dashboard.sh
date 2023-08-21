@@ -30,12 +30,13 @@ Usage: ./standard_dashboard.sh
 	[ -m | --puerto-rico ] apply Puerto Rico-specific changes. available options: true or false
 	[ -i | --input-tar-file ] the tar file given to the script by the Google Trigger
   [ -k | --skip-bq-load ] skips the bq load step. available options: true or false
+  [ -x | --helix ] apply Helix-specific changes. available options: true or false
 Happy dashboarding!
 EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:s:b:o:t:g:r:p:w:q:m:i:k:" -l "version,help,dashboard-gcp-uri:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:" -a -- "$@")
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:s:b:o:t:g:r:p:w:q:m:i:k:x:" -l "version,help,dashboard-gcp-uri:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:,helix:" -a -- "$@")
 
 eval set -- "$PARSED_ARGUMENTS"
 
@@ -71,6 +72,8 @@ while true; do
       input_tar_file=$2; shift 2;;
     -k|--skip-bq-load)
       skip_bq_load=$2; shift 2;;
+    -x|--helix)
+      helix=$2; shift 2;;
     --) shift; break ;;
       *) echo "Unexpected option: $1 -- this should not happen."; exit 1;;
   esac
@@ -131,7 +134,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create individual fasta files from GISAID multifasta
   \n
-  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico}
+  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico} ${helix}
   \n
   \n
   # Deposit individual fasta files into Terra GCP bucket

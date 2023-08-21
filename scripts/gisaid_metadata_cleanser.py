@@ -10,6 +10,7 @@ def get_opts():
     p.add_argument('out_file', help='Output file: required, must be a string.')
     p.add_argument('table_name', help='Terra table name: required, must be a string; do not include entity: or _id.')
     p.add_argument('puertorico', help='Perform Puerto Rico-specific actions')
+    p.add_argument('helix', help='Perform Helix-specific actions')
     args = p.parse_args()
     return args
 arguments = get_opts()
@@ -32,6 +33,11 @@ if arguments.puertorico == "true":
     meta_df1.drop('pango_lineage', axis='columns', inplace=True)
     # remove any samples uploaded by PR
     meta_df1 = meta_df1[~meta_df1[table_name].str.contains("PR-CVL")]
+
+# perform Helix specific actions:
+if arguments.helix == "true":
+    # rename virus names to start after the `hCoV-10/USA/CA-` prefix
+    meta_df1[table_name] = meta_df1[table_name].str.replace('hCoV-19/USA/CA-', '')
 
 # drop extraneous cols
 drop_list = []
@@ -60,10 +66,8 @@ meta_df1.replace('Unknown', value='unknown', regex=True, inplace=True)
 meta_df1['collection_date'].replace('_', value='-', regex=True, inplace=True)
 meta_df1['date_submitted'].replace('_', value='-', regex=True, inplace=True)
 
-
 # remove the word 'years' from the age column
 meta_df1['age'].replace(' years', value='', regex=True, inplace=True)
-
 
 # age column cleaning
 # replace string inputs of age ranges with individual numerical age equivalent to the bottom of the bins
