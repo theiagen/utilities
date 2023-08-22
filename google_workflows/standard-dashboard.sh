@@ -4,11 +4,11 @@ set -e
 # filename: standard_dashboard.sh
 # authors: Sage Wright, Kevin Libuit, Frank Ambrosio
 
-VERSION="Google Dashboarding v0.2"
+VERSION="Google Dashboarding v0.3"
 
 showHelp() {
 cat << EOF
-Google Dashboarding v0.2 
+Google Dashboarding v0.3 
 This script is configured to work within a Google Batch job managed by a Google Workflow and Trigger. 
 The following variables need to be passed in as input parameters. 
 CAUTION: The entire command length must be under 400 characters; using the short version of arguments is recommended
