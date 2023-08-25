@@ -28,7 +28,7 @@ main:
               - taskSpec:
                   runnables:
                     - container:
-                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-22"
                         entrypoint: "/bin/bash"
                         volumes:
                           - "/mnt/disks/cdph_helix_gisaid_staging:/data"

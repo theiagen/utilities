@@ -134,7 +134,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create individual fasta files from GISAID multifasta
   \n
-  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico} ${helix}
+  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico}
   \n
   \n
   # Deposit individual fasta files into Terra GCP bucket
@@ -149,7 +149,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Capture, reformat, and prune GISAID metadata
   \n
-  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${puerto_rico}
+  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${puerto_rico} ${helix}
   \n
   \n
   # Import formatted data table into Terra
@@ -171,7 +171,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   curl -X 'POST' \
     'https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions' \
     -H 'accept: */*' \
-    -H "Authorization: Bearer ${TOKEN}" \
+    -H \"Authorization: Bearer ${TOKEN}\" \
     -H 'Content-Type: application/json' \
     -d \"{
     \"methodConfigurationNamespace\": \"${terra_project}\",
