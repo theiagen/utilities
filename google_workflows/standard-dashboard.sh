@@ -134,12 +134,12 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Create individual fasta files from GISAID multifasta
   \n
-  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico}
+  python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico} ${helix}
   \n
   \n
   # Deposit individual fasta files into Terra GCP bucket
   \n
-  gsutil -m cp ${gisaid_dir}/individual_gisaid_assemblies_${date_tag}/*.fasta ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/
+  gsutil -m cp ${gisaid_dir}/individual_gisaid_assemblies_$(date -I)/*.fasta ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/
   \n
   \n
   # Create and import Terra Data table containing GCP pointers to deposited assemblies
@@ -161,12 +161,14 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Make a set table
   \n
-  /scripts/make_set_table.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
+  /scripts/make_terra_set.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
   \n
   \n
   # Run TheiaCoV_FASTA on the set
   \n
   TOKEN=`gcloud auth print-access-token`
+  \n
+  echo ${TOKEN}
   \n
   curl -X 'POST' \
     'https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions' \
