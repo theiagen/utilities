@@ -163,7 +163,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Make a set table
   \n
-  /scripts/make_terra_set.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
+  /scripts/make_terra_set.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
   \n
   \n
   # Run TheiaCoV_FASTA on the set
