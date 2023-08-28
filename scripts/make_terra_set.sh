@@ -27,8 +27,5 @@ for assembly in $assembly_files; do
   echo -e "${set_name}\t${samplename}" >> ${output_dir}/${set_name}.tsv
 done
 
-# remove duplicates from tsv if samplename not unique
-awk '!a[$1]++' ${output_dir}/${set_name}.tsv > temp.tsv && mv temp.tsv ${output_dir}/${set_name}.tsv
-
 # Import Terra table to sepcified terra_workspace
 python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${output_dir}/${set_name}.tsv

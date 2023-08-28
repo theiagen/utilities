@@ -122,6 +122,9 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   # set up gisaid processing directory using the current date
   gisaid_dir="${output_dir}/gisaid_processing/${date_tag}"
 
+  # establish google auth token
+  TOKEN=`gcloud auth print-access-token`
+
   # run the following compilation of scripts:
   SCRIPTS="
   # decompress gisaid input tar ball into specific date processing directory
@@ -165,16 +168,12 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   \n
   # Run TheiaCoV_FASTA on the set
   \n
-  TOKEN=`gcloud auth print-access-token`
-  \n
-  echo ${TOKEN}
-  \n
   curl -X 'POST' \
-    'https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions' \
+    \"https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions\" \
     -H 'accept: */*' \
     -H \"Authorization: Bearer ${TOKEN}\" \
     -H 'Content-Type: application/json' \
-    -d \"{
+    -d '{
     \"methodConfigurationNamespace\": \"${terra_project}\",
     \"methodConfigurationName\": \"TheiaCoV_FASTA_PHB\",
     \"entityType\": \"${terra_table_root_entity}_set\",
@@ -186,7 +185,7 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
     \"memoryRetryMultiplier\": 1,
     \"workflowFailureMode\": \"NoNewCalls\",
     \"userComment\": \"${date_tag}-set automatically launched\"
-    }\"
+    }'
   \n
   \n
   else 
