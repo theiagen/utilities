@@ -36,8 +36,7 @@ EOF
 }
 
 # use getopt to parse the input arguments
-PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:j:s:b:o:t:g:r:p:w:q:m:i:" -l "version,help,dashboard-gcp-uri:,dashboard-newline-json:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:" -a -- "$@")
-
+PARSED_ARGUMENTS=$(getopt -n "standard-dashboard" -o "hvd:s:b:o:t:g:r:p:w:q:m:i:k:x:" -l "version,help,dashboard-gcp-uri:,dashboard-schema:,gisaid-backup-dir:,output-dir:,trigger-bucket:,terra-gcp-uri:,terra-table-root-entity:,terra-project:,terra-workspace:,big-query-table-name:,puerto-rico:,input-tar-file:,skip-bq-load:,helix:" -a -- "$@")
 eval set -- "$PARSED_ARGUMENTS"
 
 while true; do
