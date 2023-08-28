@@ -15,7 +15,8 @@ def get_opts():
                 help='Location of output directory.')
     p.add_argument('puertorico',
                 help='perform Puerto Rico-specific functions.')
-    # add PR-specific removal of PR-CVL data
+    p.add_argument('helix',
+                help='perform Helix-specific functions.')
     args = p.parse_args()
     return args
 arguments = get_opts()
@@ -44,6 +45,9 @@ no_slashes_seq_names_list = []
 for i in original_seq_names_list:
     j = i.replace('/','_')
     j = j.replace('|',"_") # to prevent accidental piping
+    if (arguments.helix == "true"):
+        j = j.replace('hCoV-19_USA_CA-','') # remove hCoV-19_USA_C A- from the beginning of the name
+        j = j[:-5] # remove _202* from the end of the name
     no_slashes_seq_names_list.append(j)
 
 # zip sequences and new slashless names into dicitonary
