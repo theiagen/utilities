@@ -38,6 +38,7 @@ if arguments.puertorico == "true":
 if arguments.helix == "true":
     # rename virus names to start after the `hCoV-10/USA/CA-` prefix
     meta_df1[table_name] = meta_df1[table_name].str.replace('hCoV-19/USA/CA-', '')
+    meta_df1[table_name] = meta_df1[table_name].str[:-5]
 
 # drop extraneous cols
 drop_list = []
