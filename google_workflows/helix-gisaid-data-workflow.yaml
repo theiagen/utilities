@@ -28,14 +28,14 @@ main:
               - taskSpec:
                   runnables:
                     - container:
-                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-22"
                         entrypoint: "/bin/bash"
                         volumes:
                           - "/mnt/disks/cdph_helix_gisaid_staging:/data"
                           - "/mnt/disks/cdph_helix_gisaid_staging/.config:/.config"
                         commands:
                           - "-c"
-                          - ${ "bash /data/standard-dashboard.sh -d gs://cdph_helix_gisaid_staging -s no -b /data/input_gisaid -o /data -t gs://cdph_helix_gisaid -g gs://fc-6f47810a-0cc3-4e68-b8f0-12cde24d5893 -r helix_gisaid -p cdc-terrabio-taborda-manual -w dataAnalysis_SARS-CoV-2_Helix -q no -m false -i " + newFile + " -k true -x true"}
+                          - ${ "bash /data/standard-dashboard.sh -d gs://cdph_helix_gisaid_staging -s no -b /data/input_gisaid -o /data -t gs://cdph_helix_gisaid -g gs://fc-6f47810a-0cc3-4e68-b8f0-12cde24d5893 -r helix_gisaid -p cdph-terrabio-taborda-manual -w dataAnalysis_SARS-CoV-2_Helix -q no -m false -i " + newFile + " -k true -x true"}
                   volumes:
                     - gcs:
                         remotePath: "cdph_helix_gisaid_staging"
