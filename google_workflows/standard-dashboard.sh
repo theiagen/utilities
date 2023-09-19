@@ -80,7 +80,7 @@ done
 
 ### SET RE-USED FUNCTIONS
 
-# this function will make a direcotry if it does not already exist
+# this function will make a directory if it does not already exist
 make_directory() {
   if [ -e $1 ]; then
 	echo "Directory "$1" already exists"
@@ -102,14 +102,29 @@ make_directory ${output_dir}/backup_jsons
 
 # echo the variables that were provided
 echo -e "Dashboarding Automated System initiated at ${date_tag}\n" | tee ${output_dir}/automation_logs/dashboard-${date_tag}.log
-echo -e "Input variables:\ndashboard_gcp_uri: ${dashboard_gcp_uri},\ndashboard_newline_json: ${dashboard_newline_json},\ndashboard_bq_load_schema: ${dashboard_schema},\ngisaid_backup_dir: ${gisaid_backup_dir},\nmounted_output_dir: ${output_dir},\ntrigger_bucket_gcp_uri: ${trigger_bucket},\nterra_gcp_uri: ${terra_gcp_uri},\nterra_table_root_entity: ${terra_table_root_entity},\nterra_project: ${terra_project},\nterra_workspace: ${terra_workspace},\nbig_query_table_name: ${big_query_table_name}\n" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "Input variables:" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "dashboard_gcp_uri: ${dashboard_gcp_uri}," | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "dashboard_newline_json: ${dashboard_newline_json}," | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "dashboard_bq_load_schema: ${dashboard_schema}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "gisaid_backup_dir: ${gisaid_backup_dir}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "output_dir: ${output_dir}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "trigger_bucket: ${trigger_bucket}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "terra_gcp_uri: ${terra_gcp_uri}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "terra_table_root_entity: ${terra_table_root_entity}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "terra_project: ${terra_project}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "terra_workspace: ${terra_workspace}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "big_query_table_name: ${big_query_table_name}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "puerto_rico: ${puerto_rico}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "input_tar_file: ${input_tar_file}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "skip_bq_load: ${skip_bq_load}" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo -e "helix: ${helix}\n" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
 
 # take in file as input from trigger
 file=${trigger_bucket}/${input_tar_file}
 filename=${input_tar_file}
 
 # indicate that a file has been successfully passed to the script
-echo "The file '$filename' appeared in directory '$trigger_bucket'" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+echo "The file '$filename' appeared in directory '$trigger_bucket'" | tee -a ${output_dir}/automation_logs/dashboard-${date_tag}.log
 
 # copy the file to the gisaid_backup directory
 gsutil cp ${file} ${gisaid_backup_dir}/
@@ -122,104 +137,88 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   # set up gisaid processing directory using the current date
   gisaid_dir="${output_dir}/gisaid_processing/${date_tag}"
 
-  # establish google auth token
-  TOKEN=`gcloud auth print-access-token`
-
-  # run the following compilation of scripts:
-  SCRIPTS="
   # decompress gisaid input tar ball into specific date processing directory
-  \n
+  echo "Decompressing ${filename} into ${gisaid_dir}" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
   mkdir ${gisaid_dir}
-  \n
   tar -xf ${gisaid_backup_dir}/${filename} -C ${gisaid_dir}
-  \n
-  \n
+  
   # Create individual fasta files from GISAID multifasta
-  \n
+  echo "Creating individual fasta files from GISAID multifasta" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
   python3 /scripts/gisaid_multifasta_parser.py ${gisaid_dir}/*.sequences.fasta ${gisaid_dir} ${puerto_rico} ${helix}
-  \n
-  \n
-  # Deposit individual fasta files into Terra GCP bucket
-  \n
+  
+  # Deposit individual fasta files into Terra GCP bucket    
+  echo "Depositing individual fasta files into Terra GCP bucket" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
   gsutil -m cp ${gisaid_dir}/individual_gisaid_assemblies_$(date -I)/*.fasta ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/
-  \n
-  \n
-  # Create and import Terra Data table containing GCP pointers to deposited assemblies
-  \n
-  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
-  \n
-  \n
-  # Capture, reformat, and prune GISAID metadata
-  \n
-  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${puerto_rico} ${helix}
-  \n
-  \n
-  # Import formatted data table into Terra
-  \n
-  python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
-  \n
-  \n
-  if ${skip_bq_load} ; then
-  \n
-  # Make a set table
-  \n
-  /scripts/make_terra_set.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag}/ ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} \".fasta\" ${date_tag}
-  \n
-  \n
-  # Run TheiaCoV_FASTA on the set
-  \n
-  curl -X 'POST' \
-    \"https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions\" \
-    -H 'accept: */*' \
-    -H \"Authorization: Bearer ${TOKEN}\" \
-    -H 'Content-Type: application/json' \
-    -d '{
-    \"methodConfigurationNamespace\": \"${terra_project}\",
-    \"methodConfigurationName\": \"TheiaCoV_FASTA_PHB\",
-    \"entityType\": \"${terra_table_root_entity}_set\",
-    \"entityName\": \"${date_tag}-set\",
-    \"expression\": \"this.${terra_table_root_entity}s\",
-    \"useCallCache\": true,
-    \"deleteIntermediateOutputFiles\": false,
-    \"useReferenceDisks\": false,
-    \"memoryRetryMultiplier\": 1,
-    \"workflowFailureMode\": \"NoNewCalls\",
-    \"userComment\": \"${date_tag}-set automatically launched\"
-    }'
-  \n
-  \n
-  else 
-  # Capture the entire Terra data table as a tsv
-  \n
-  python3 /scripts/export_large_tsv/export_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --entity_type ${terra_table_root_entity} --tsv_filename ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv
-  \n
-  \n
-  # Convert the local Terra table tsv into a newline json
-  \n
-  python3 /scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
-  \n
-  \n
-  # Push newline json to the dashboard GCP bucket and backup folder
-  \n
-  gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${dashboard_gcp_uri}/${terra_table_root_entity}.json
-  \n
-  gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${output_dir}/backup_jsons/
-  \n
-  \n
-  # Load newline json to Big Query 
-  \n
-  bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
-  \n
-  fi
-  \n
-  \n
-  "
-  # write the commands that will be run to the automation log
-  echo -e "#### Capturing GISAID data into Dashboard (${date_tag}) ####\n" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
-  echo -e $SCRIPTS >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
 
-  # run the scripts
-  echo -e $SCRIPTS | bash -x
+  # Create and import Terra Data table containing GCP pointers to deposited assemblies
+  echo "Creating and importing Terra Data table containing GCP pointers to deposited assemblies" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+  /scripts/terra_table_from_gcp_assemblies.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} ".fasta" ${date_tag}
+
+  # Capture, reformat, and prune GISAID metadata
+  echo "Capturing, reformatting, and pruning GISAID metadata" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+  python3 /scripts/gisaid_metadata_cleanser.py ${gisaid_dir}/*.metadata.tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv ${terra_table_root_entity} ${puerto_rico} ${helix}
+
+  # Add sequencing lab column to metadata table if Helix data
+  if ${helix} ; then  
+    echo "Adding the sequencing lab column to metadata table" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    awk -i inplace 'BEGIN{OFS="\t"} {sub(/\r$/,""); print $0, (NR>1 ? "Helix" : "sequencing_lab")}' ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
+  fi
+
+  # Import formatted data table into Terra
+  echo "Importing formatted data table into Terra" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+  python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
+  
+  if ${skip_bq_load} ; then
+
+    # Make a set table
+    echo "Making a set table" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    /scripts/make_terra_set.sh ${terra_gcp_uri}/uploads/gisaid_individual_assemblies_${date_tag} ${terra_project} ${terra_workspace} ${terra_table_root_entity} ${gisaid_dir} ".fasta" ${date_tag}
+    
+    # establish google auth token
+    echo "Establishing google auth token" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    TOKEN=`gcloud auth print-access-token`
+
+    # Run TheiaCoV_FASTA on the set
+    echo "Running TheiaCoV_FASTA on the set" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    curl -X 'POST' \
+      "https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions" \
+      -H 'accept: */*' \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+      \"methodConfigurationNamespace\": \"${terra_project}\",
+      \"methodConfigurationName\": \"TheiaCoV_FASTA_PHB\",
+      \"entityType\": \"${terra_table_root_entity}_set\",
+      \"entityName\": \"${date_tag}-set\",
+      \"expression\": \"this.${terra_table_root_entity}s\",
+      \"useCallCache\": true,
+      \"deleteIntermediateOutputFiles\": false,
+      \"useReferenceDisks\": false,
+      \"memoryRetryMultiplier\": 1,
+      \"workflowFailureMode\": \"NoNewCalls\",
+      \"userComment\": \"${date_tag}-set automatically launched\"
+      }"
+    
+  else 
+
+    # Capture the entire Terra data table as a tsv
+    echo "Capturing the entire Terra data table as a tsv" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    python3 /scripts/export_large_tsv/export_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --entity_type ${terra_table_root_entity} --tsv_filename ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv
+
+    # Convert the local Terra table tsv into a newline json
+    echo "Converting the local Terra table tsv into a newline json" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    python3 /scripts/tsv_to_newline_json.py ${gisaid_dir}/full_${terra_table_root_entity}_terra_table_${date_tag}.tsv ${gisaid_dir}/${terra_table_root_entity}_${date_tag}
+
+    # Push newline json to the dashboard GCP bucket and backup folder
+    echo "Pushing newline json to the dashboard GCP bucket and backup folder" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${dashboard_gcp_uri}/${terra_table_root_entity}.json
+    gsutil cp ${gisaid_dir}/${terra_table_root_entity}_${date_tag}.json ${output_dir}/backup_jsons/
+
+    # Load newline json to Big Query 
+    echo "Loading newline json to Big Query" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
+
+  fi
 
 else
   # display error message if the file is not a GISAID file
