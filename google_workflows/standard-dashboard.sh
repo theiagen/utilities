@@ -160,8 +160,11 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
 
   # Add sequencing lab column to metadata table if Helix data
   if ${helix} ; then  
-    echo "Adding the sequencing lab column to metadata table" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    echo "Adding the sequencing lab column and upload date to metadata table" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
     awk -i inplace 'BEGIN{OFS="\t"} {sub(/\r$/,""); print $0, (NR>1 ? "Helix" : "sequencing_lab")}' ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
+    awk -i inplace -v date=$(date -I) 'BEGIN{OFS="\t"} {sub(/\r$/,""); print $0, (NR>1 ? date : "upload_date")}' ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
+    echo "Renaming 'division' column to 'state'" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
+    sed -i '1s/division/state/' ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv
   fi
 
   # Import formatted data table into Terra
