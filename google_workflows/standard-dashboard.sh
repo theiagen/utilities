@@ -176,8 +176,9 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   # commenting out because we're using a different google workflow to load this dataset in bigquery
   #bq load --ignore_unknown_values=true --replace=true --source_format=NEWLINE_DELIMITED_JSON ${big_query_table_name} ${dashboard_gcp_uri}/${terra_table_root_entity}.json ${dashboard_schema}
   \n
-  \n
   "
+  # ending SCRIPTS block so that we don't have to deal with escaping double quotes and that madness
+  
   # write the commands that will be run to the automation log
   echo -e "#### Capturing GISAID data into Dashboard (${date_tag}) ####\n" >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
   echo -e $SCRIPTS >> ${output_dir}/automation_logs/dashboard-${date_tag}.log
@@ -185,7 +186,41 @@ if [[ "$file" == *"gisaid_auspice_input"*"tar" ]]; then
   # run the scripts
   echo -e $SCRIPTS | bash -x
 
+  # cut first column from Terra metadata TSV for assemblies
+  # create header for set TSV metadata
+  echo -e "membership:${terra_table_root_entity}_set_id\t${terra_table_root_entity}" > ${gisaid_dir}/tosubmit-${date_tag}.txt
+
+  # use list of IDs to fill in set TSV metadata 
+  tail -n+2 ${gisaid_dir}/gisaid_metadata_${date_tag}.tsv | awk -v prefix="${terra_table_root_entity}-${date_tag}\t" '{print prefix $1}' >> ${gisaid_dir}/tosubmit-${date_tag}.txt
+
+  # upload that set
+  python3 /scripts/import_large_tsv/import_large_tsv.py --project ${terra_project} --workspace ${terra_workspace} --tsv ${gisaid_dir}/tosubmit-${date_tag}.txt
+
+  # get token
+  export TOKEN=`gcloud auth print-access-token`
+
+  # curl to launch TheiaCov_FASTA_PHB
+  curl -X 'POST' \
+    "https://api.firecloud.org/api/workspaces/${terra_project}/${terra_workspace}/submissions" \
+    -H 'accept: */*' \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d "{ \
+    \"methodConfigurationNamespace\": \"${terra_project}\",
+    \"methodConfigurationName\": \"TheiaCoV_FASTA_PHB_dashboard\",
+    \"entityType\": \"${terra_table_root_entity}_set\",
+    \"entityName\": \"${terra_table_root_entity}-${date_tag}\",
+    \"expression\": \"this.${terra_table_root_entity}s\",
+    \"useCallCache\": true,
+    \"deleteIntermediateOutputFiles\": false,
+    \"useReferenceDisks\": false,
+    \"memoryRetryMultiplier\": 1,
+    \"workflowFailureMode\": \"NoNewCalls\",
+    \"userComment\": \"${terra_table_root_entity}-${date_tag} automatically launched\"
+    }"
+
 else
   # display error message if the file is not a GISAID file
   echo "The file was not recognized as a GISAID auspice tar file."
 fi
+
