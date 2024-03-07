@@ -1,0 +1,128 @@
+[
+ {
+   "description": "specimen_id",
+   "name": "specimen_id",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "paui",
+   "name": "paui",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "upload_date",
+   "name": "upload_date",
+   "type": "DATE",
+   "mode": "Nullable"
+ },
+ {
+   "description": "barcode",
+   "name": "barcode",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "collection_date",
+   "name": "collection_date",
+   "type": "DATE",
+   "mode": "Nullable"
+ },
+ {
+   "description": "county",
+   "name": "county",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "state",
+   "name": "state",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "sequencing_lab",
+   "name": "sequencing_lab",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "assembly_length_unambiguous",
+   "name": "assembly_length_unambiguous",
+   "type": "INTEGER",
+   "mode": "Nullable"
+ },
+ {
+   "description": "assembly_mean_coverage",
+   "name": "assembly_mean_coverage",
+   "type": "FLOAT",
+   "mode": "Nullable"
+ },
+ {
+   "description": "nextclade_aa_dels",
+   "name": "nextclade_aa_dels",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "nextclade_aa_subs",
+   "name": "nextclade_aa_subs",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "nextclade_clade",
+   "name": "nextclade_clade",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "nextclade_version",
+   "name": "nextclade_version",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "number_N",
+   "name": "number_N",
+   "type": "INTEGER",
+   "mode": "Nullable"
+ },
+ {
+   "description": "pango_lineage",
+   "name": "pango_lineage",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "pangolin_versions",
+   "name": "pangolin_versions",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "percent_reference_coverage",
+   "name": "percent_reference_coverage",
+   "type": "FLOAT",
+   "mode": "Nullable"
+ },
+ {
+   "description": "run_id",
+   "name": "run_id",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "vadr_num_alerts",
+   "name": "vadr_num_alerts",
+   "type": "STRING",
+   "mode": "Nullable"
+ },
+ {
+   "description": "gisaid_accession",
+   "name": "gisaid_accession",
+   "type": "STRING",
+   "mode": "Nullable"
+ }
+]
