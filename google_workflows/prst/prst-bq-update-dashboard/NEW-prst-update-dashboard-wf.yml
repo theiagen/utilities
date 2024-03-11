@@ -1,0 +1,201 @@
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - projectId: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+          - region: "us-central1"
+          - batchApi: "batch.googleapis.com/v1"
+          - batchApiUrl: ${ "https://" + batchApi + "/projects/" + projectId + "/locations/" + region + "/jobs"}
+          - timeStamp: ${string(int(sys.now()))}
+    - updateMasterTables:
+        parallel:
+          shared: [projectId, region, batchApi, batchApiUrl, timeStamp]
+          branches:
+            - update_ont:
+                steps:
+                  - update_ont_table:
+                      call: http.post
+                      args:
+                        url: ${batchApiUrl}
+                        query:
+                          job_id: ${ "prst-ont-update-" + timeStamp}
+                        headers:
+                          Content-Type: application/json
+                        auth:
+                          type: OAuth2
+                        body:
+                          taskGroups:
+                            - taskSpec:
+                                runnables:
+                                  - container:
+                                      imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                      entrypoint: "/bin/bash"
+                                      volumes:
+                                        - "/mnt/disks/pr-sci-trust-dashboard:/data"
+                                        - "/mnt/disks/pr-sci-trust-dashboard/.config:/.config"
+                                      commands:
+                                        - "-c"
+                                        - ${ "bash /data/update-prst-dashboard.sh theiagen-prscitrust PR-SCITRUST-COVID ont_specimen ont_specimen gs://prst-bq-processing/"}
+                                volumes:
+                                  - gcs:
+                                      remotePath: "pr-sci-trust-dashboard"
+                                    mountPath: "/mnt/disks/pr-sci-trust-dashboard"
+                              taskCount: 1
+                          logsPolicy:
+                            destination: CLOUD_LOGGING
+                          allocationPolicy:
+                            instances:
+                              - policy:
+                                  machineType: e2-highmem-2
+                            serviceAccount:
+                              email: "terra-batchie-watchie@general-theiagen.iam.gserviceaccount.com"
+                  - get-status-ont:
+                      call: http.get
+                      args:
+                        url: ${batchApiUrl + "/" + "prst-ont-update-" + timeStamp}
+                        auth:
+                          type: OAuth2
+                      result: PRST_ONT_Result
+                  - log-status-ont:
+                      call: sys.log
+                      args:
+                        data: ${ "Current PRST ONT table update job state " + PRST_ONT_Result.body.status.state}
+                  - check_PRST_ONT_State:
+                      switch:
+                        - condition: ${PRST_ONT_Result.body.status.state == "SUCCEEDED"}
+                          next: continue
+                        - condition: ${PRST_ONT_Result.body.status.state == "FAILED"}
+                          next: continue
+                      next: sleepPRSTONT
+                  - sleepPRSTONT:
+                      call: sys.sleep
+                      args:
+                        seconds: 10
+                      next: get-status-ont
+            - run_update_yale_illumina_table:
+                steps:
+                  - update_table_yale_illumina:
+                      call: http.post
+                      args:
+                        url: ${batchApiUrl}
+                        query:
+                          job_id: ${ "prst-yale-illumina-" + timeStamp}
+                        headers:
+                          Content-Type: application/json
+                        auth:
+                          type: OAuth2
+                        body:
+                          taskGroups:
+                            - taskSpec:
+                                runnables:
+                                  - container:
+                                      imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                      entrypoint: "/bin/bash"
+                                      volumes:
+                                        - "/mnt/disks/pr-sci-trust-dashboard:/data"
+                                        - "/mnt/disks/pr-sci-trust-dashboard/.config:/.config"
+                                      commands:
+                                        - "-c"
+                                        - ${ "bash /data/update-prst-dashboard.sh theiagen-prscitrust PR-SCITRUST-COVID yale_illumina_specimen yale_illumina_specimen gs://prst-bq-processing/"}
+                                volumes:
+                                  - gcs:
+                                      remotePath: "pr-sci-trust-dashboard"
+                                    mountPath: "/mnt/disks/pr-sci-trust-dashboard"
+                              taskCount: 1
+                          logsPolicy:
+                            destination: CLOUD_LOGGING
+                          allocationPolicy:
+                            instances:
+                              - policy:
+                                  machineType: e2-highmem-2
+                            serviceAccount:
+                              email: "terra-batchie-watchie@general-theiagen.iam.gserviceaccount.com"
+                  - get-status-yale-illumina:
+                      call: http.get
+                      args:
+                        url: ${batchApiUrl + "/" + "prst-yale-illumina-" + timeStamp}
+                        auth:
+                          type: OAuth2
+                      result: prstYaleStatus
+                  - log-status-yale-illumina:
+                      call: sys.log
+                      args:
+                        data: ${ "Current PRST Yale Illumina table update job state " + prstYaleStatus.body.status.state}
+                  - check_PRST_YALE_ILLUMINA_state:
+                      switch:
+                        - condition: ${prstYaleStatus.body.status.state == "SUCCEEDED"}
+                          next: continue
+                        - condition: ${prstYaleStatus.body.status.state == "FAILED"}
+                          next: continue
+                      next: sleep_PRST_YALE_ILMN
+                  - sleep_PRST_YALE_ILMN:
+                      call: sys.sleep
+                      args:
+                        seconds: 10
+                      next: get-status-yale-illumina
+            - run_nonPRCVL_gisaid:
+                steps:
+                  - update_table_nonPRCVL_gisaid:
+                        call: http.post
+                        args:
+                          url: ${batchApiUrl}
+                          query:
+                            job_id: ${ "prst-nonprcvl-gisaid-" + timeStamp}
+                          headers:
+                            Content-Type: application/json
+                          auth:
+                            type: OAuth2
+                          body:
+                            taskGroups:
+                              - taskSpec:
+                                  runnables:
+                                    - container:
+                                        imageUri: "us-docker.pkg.dev/general-theiagen/theiagen/terra-tools:2023-08-08-2"
+                                        entrypoint: "/bin/bash"
+                                        volumes:
+                                          - "/mnt/disks/pr-sci-trust-dashboard:/data"
+                                          - "/mnt/disks/pr-sci-trust-dashboard/.config:/.config"
+                                        commands:
+                                          - "-c"
+                                          - ${ "bash /data/update-prst-dashboard.sh theiagen-prscitrust PR-SCITRUST-COVID nonPRCVL_gisaid nonPRCVL_gisaid gs://terra-bq-processing/"}
+                                  volumes:
+                                    - gcs:
+                                        remotePath: "pr-sci-trust-dashboard"
+                                      mountPath: "/mnt/disks/pr-sci-trust-dashboard"
+                                taskCount: 1
+                            logsPolicy:
+                              destination: CLOUD_LOGGING
+                            allocationPolicy:
+                              instances:
+                                - policy:
+                                    machineType: e2-highmem-2
+                              serviceAccount:
+                                email: "terra-batchie-watchie@general-theiagen.iam.gserviceaccount.com"
+                  - get-status-nonPRCVLgisaid:
+                      call: http.get
+                      args:
+                        url: ${batchApiUrl + "/" + "prst-nonprcvl-gisaid-" + timeStamp}
+                        auth:
+                          type: OAuth2
+                      result: prstNonPRCVLgisaidStatus
+                  - log-status-nonPRCVLgisaid:
+                      call: sys.log
+                      args:
+                        data: ${ "Current prstNonPRCVLgisaid job state " + prstNonPRCVLgisaidStatus.body.status.state}
+                  - checkLGCLookerState:
+                      switch:
+                        - condition: ${prstNonPRCVLgisaidStatus.body.status.state == "SUCCEEDED"}
+                          next: continue
+                        - condition: ${prstNonPRCVLgisaidStatus.body.status.state == "FAILED"}
+                          next: continue
+                      next: sleepLGCLooker
+                  - sleepLGCLooker:
+                      call: sys.sleep
+                      args:
+                        seconds: 10
+                      next: get-status-nonPRCVLgisaid 
+    - logCompletion:
+        call: sys.log
+        args:
+          data: ${ "All batches completed at " + string(int(sys.now()))}
