@@ -183,14 +183,14 @@ main:
                       call: sys.log
                       args:
                         data: ${ "Current prstNonPRCVLgisaid job state " + prstNonPRCVLgisaidStatus.body.status.state}
-                  - checkLGCLookerState:
+                  - checknonPRCVLgisaidState:
                       switch:
                         - condition: ${prstNonPRCVLgisaidStatus.body.status.state == "SUCCEEDED"}
                           next: continue
                         - condition: ${prstNonPRCVLgisaidStatus.body.status.state == "FAILED"}
                           next: continue
-                      next: sleepLGCLooker
-                  - sleepLGCLooker:
+                      next: sleepnonPRCVLgisaid
+                  - sleepnonPRCVLgisaid:
                       call: sys.sleep
                       args:
                         seconds: 10
