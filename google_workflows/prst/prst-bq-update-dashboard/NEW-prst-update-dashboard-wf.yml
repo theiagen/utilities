@@ -158,7 +158,7 @@ main:
                                           - "/mnt/disks/pr-sci-trust-dashboard/.config:/.config"
                                         commands:
                                           - "-c"
-                                          - ${ "bash /data/update-prst-dashboard.sh theiagen-prscitrust PR-SCITRUST-COVID nonPRCVL_gisaid nonPRCVL_gisaid gs://terra-bq-processing/"}
+                                          - ${ "bash /data/update-prst-dashboard.sh theiagen-prscitrust PR-SCITRUST-COVID nonPRCVL_gisaid nonPRCVL_gisaid gs://prst-bq-processing/"}
                                   volumes:
                                     - gcs:
                                         remotePath: "pr-sci-trust-dashboard"
