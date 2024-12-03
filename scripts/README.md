@@ -113,3 +113,19 @@ This shell script performs all of the functions necessary to transform a given G
 $ ./standard-dashboard.sh -h
 ```
 
+### nextclade-version-check.sh
+
+A shell script that checks nextclade dataset versions in the `wf_organism_parameters` against latest available versions and report which ones need to be udpated.
+
+#### requirements
+- bash
+- python3
+- curl
+- internet connection to access GitHub and download nextclade
+
+#### usage
+```bash
+./nextclade-version-check.sh
+```
+
+Now check the nextclade_versions.csv to see what nextclade tags need to be udpated. 
