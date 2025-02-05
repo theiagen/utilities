@@ -22,7 +22,6 @@ except ImportError:
     sys.exit(3)
 import requests
 import argparse
-import tempfile
 from io import StringIO
 from collections import defaultdict
 
@@ -37,7 +36,8 @@ def set_wdl_paths():
     return source, dependencies
 
 def remote_load(url):
-    """Read WDL file from remote link"""
+    """Read WDL file from remote link - May need to be modified because WDL.load does
+    not accept a string/StringIO object"""
     response = requests.get(url)
     response.raise_for_status()
     wdl_text = response.text
@@ -62,13 +62,11 @@ def collect_files(directory = './', filetype = '*', recursive = False):
     filelist = []
     for filetype in filetypes:
         if recursive:
-            filelist.extend( 
-                glob.glob(directory + "/**/*." + filetype, recursive = recursive)
-            )
+            filelist.extend(glob.glob(directory + "/**/*." + filetype, 
+                                      recursive = recursive))
         else:
-            filelist.extend(
-                glob.glob(directory + "/*." + filetype, recursive = recursive) 
-            )
+            filelist.extend(glob.glob(directory + "/*." + filetype, 
+                                      recursive = recursive))
 
     return filelist
 
@@ -86,7 +84,7 @@ def expand_env_var(path):
     return path.replace('//','/')
 
 def format_path(path, force_dir = False):
-    '''Goal is to convert all path types to absolute path with explicit dirs'''
+    '''Convert all path types to absolute path with explicit directory ending'''
 
     if path:
         path = os.path.expanduser(path)
@@ -119,7 +117,8 @@ def check_repo_head(repo_dir):
         return False
 
 def get_io(wdl_file, local = False):
-    """Get imports from WDL file"""
+    """Get imports from WDL file.
+    Currently only suitable for WDL files with either tasks or workflows"""
     if local:
         wf = WDL.load(wdl_file)
     else:
@@ -129,11 +128,12 @@ def get_io(wdl_file, local = False):
     task2outputs = {}
     wf2inputs = {}
     wf2outputs = {}
-    # This may need to be updated to accomodate other instances
+    # Populate task inputs
     if wf.tasks:
         for task in wf.tasks:
             task2inputs[task.name] = task.inputs
             task2outputs[task.name] = task.outputs
+    # Populate workflow inputs
     if wf.workflow:
         wf2inputs[wf.workflow.name] = wf.workflow.inputs
         wf2outputs[wf.workflow.name] = wf.workflow.outputs
@@ -149,15 +149,20 @@ def get_io(wdl_file, local = False):
 
 def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     """Obtain the inputs of a task in a WDL file using REGEX"""
+
+    # Read the WDL file
     if local:
         with open(wdl_file, 'r') as raw:
             wdl_data = raw.read()
     else:
         wdl_data = remote_load(wdl_file)
+
     # prepare a compiled regex to find the task and its inputs
     re_comp = re.compile(r'call\W+' + f'{namespace}\.{task}' + r'\W+{' \
                        + r'\s+input:\s+([^}]+)', re.DOTALL)
     matches = re_comp.findall(wdl_data)
+
+    # Only one instance of the task should be found
     if len(list(matches)) > 1:
         eprint(f'ERROR: Multiple instances of {namespace}.{task} found in {wdl_file}' \
                 + ' - this script is not equipped to handle this')
@@ -166,6 +171,8 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
         eprint('ERROR: REGEX not equipped to handle nested "{" ' \
              + f'in {namespace}.{task} in {wdl_file}')
         sys.exit(5)
+
+    # Parse the input variables and expressions
     namespace_inputs = {}
     input_list = matches[0].split('\n')
     for input in input_list:
@@ -179,7 +186,8 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
 
 def get_downstream_remote(foc_file, foc_info,
                           dependencies, task = 'export_taxon_tables'):
-    """Parse downstream dependencies of a WDL file remotely"""
+    """Parse downstream dependencies of a WDL file remotely.
+    Currently non-functional due to WDL.load not accepting a string"""
     preexisting = {}
     downstream = {}
     for wdl_file in dependencies:
@@ -201,38 +209,39 @@ def get_downstream_local(foc_file, foc_info, wdl_files,
     """Get and parse downstream dependencies of a WDL file"""
     preexisting = {}
     downstream = {}
+
     for wdl_file in wdl_files:
         wdl = WDL.load(wdl_file)
         wdl_dir = os.path.dirname(wdl_file)
         for wdl_import in wdl.imports:
             uri = wdl_import.uri
             uri_path = format_path(os.path.join(wdl_dir, uri))
+            # Check if the focal file is imported by the downstream file
             if uri_path == foc_file:
                 eprint(f'\t{wdl_file}')
                 task_io, wf_io = get_io(wdl_file, local = True)
                 namespace = wdl_import.namespace
+                # Get I/O from the downstream file
                 downstream[wdl_file] = {'namespace': namespace,
                                         'outputs': wf_io['outputs'],
                                         'inputs': wf_io['inputs']}
+                # Get the inputs to the task call in the downstream file
                 preexisting[wdl_file] = obtain_namespace_inputs(wdl_file, namespace, 
                                                                 task, local = True)
 
     return downstream, preexisting
 
-def compile_outputs(io_dict):
-    """Identify the outputs to eventually 
-    populate the input script's inputs"""
-        # have to convert the WDL type objects to a proper string for hashing
-#   input_data = {(inp.name, str(inp.type),) for inp in inputs}
+def compile_downstream_io(io_dict):
+    """Identify the downstream I/O to eventually populate the input task's inputs"""
     wdl2in2type = defaultdict(dict)
     wdl2out2type = defaultdict(dict)
     wdl2out_hash, wdl2in_hash = {}, {}
     wdl2namespace = {}
     for wdl_file, wdl_info in io_dict.items():
-        # namespace = wdl_info['namespace']
         wdl2out_hash[wdl_file] = {}
         wdl2in_hash[wdl_file] = {}
         wdl2namespace[wdl_file] = wdl_info['namespace']
+        # Multiple workflows may be present in a single WDL file
         for task1, outputs in wdl_info['outputs'].items():
             wdl2out_hash[wdl_file][task1] = []
             # have to convert the WDL type objects to a proper string for hashing
@@ -253,16 +262,18 @@ def compile_outputs(io_dict):
 def print_changes(input_file, input_inputs, wdl2out_hash, 
                   wdl2namespace, task_name, preexisting, task,
                   ignored_inputs, wdl2in_hash, wdl2in2type, wdl2out2type):
-    """Print the input script's new inputs"""
+    """Print the input task's new inputs"""
 
     # Identify and print inputs from the workflow that do not correspond
     print()
+    # Collect the types for each variable name to check and refer to later
     task_in2type_set = defaultdict(set)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
         print(f'{wdl_file}')
         print(f'\tAdd to {namespace}.{task_name} call:')
         outputs2expr, inputs2expr = {}, {}
+        # Compile the variable names and expressions for the outputs and inputs
         for task0, outputs in task_dict.items():
             for out_name, out_var in outputs:
                 outputs2expr[out_name] = out_var
@@ -314,6 +325,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         # all types are assumed to be optional
         print(f'{task_in2type[in_var]}? {in_var}')
 
+    # Report the extraneous inputs for the input task
     extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
     extra_inputs = extra_inputs_prep.difference(ignored_inputs)
     print('\tRemove from inputs:')
@@ -344,6 +356,7 @@ def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
     else:
         wdl_info = wf_io
 
+    # Compile the inputs for the focal WDL file
     input_inputs = {x.name: str(x.type) for x in wdl_info['inputs'][task_name]}
 
     eprint('Downstream dependencies:')
@@ -361,8 +374,9 @@ def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
         eprint("No downstream dependencies found")
         sys.exit(3)
 
+    # Compile the downstream I/O for easier parsing
     wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type \
-        = compile_outputs(downstream_io)
+        = compile_downstream_io(downstream_io)
 
     # Print the new inputs for the focal WDL file
     print_changes(input_file, input_inputs, wdl2out_hash, 
@@ -401,7 +415,7 @@ def cli():
             sys.exit(1)
         dependencies = []
 
-    main(source_task, dependencies, local_repo_path) #, args.downstream)
+    main(source_task, dependencies, local_repo_path)
 
 if __name__ == '__main__':
     cli()
