@@ -7,6 +7,8 @@ discrepant with downstream workflows
 - Currently prints recommended changes, but staged for automated updating in place
 - Does not account for variables that have the same name, but different type declarations
 - Does not accomodate multiple calls to task in same workflow
+- Staged for remote runs, but loading remote WDL files with WDL is currently non-functional,
+    - Remove required from -i and -r, uncomment other arguments to initialize remote function
 """
 
 import os
@@ -18,9 +20,28 @@ try:
 except ImportError:
     sys.stderr.write("ERROR: WDL Python package not found\nInstall MiniWDL\n")
     sys.exit(3)
+import requests
 import argparse
+import tempfile
+from io import StringIO
 from collections import defaultdict
 
+
+def set_wdl_paths():
+    """Set dependency paths relative to remote repo"""
+    source = 'tasks/utilities/data_export/task_broad_terra_tools.wdl'
+    dependencies = ['workflows/theiaprok/wf_theiaprok_fasta.wdl',
+                    'workflows/theiaprok/wf_theiaprok_illumina_pe.wdl',
+                    'workflows/theiaprok/wf_theiaprok_illumina_se.wdl',
+                    'workflows/theiaprok/wf_theiaprok_ont.wdl']
+    return source, dependencies
+
+def remote_load(url):
+    """Read WDL file from remote link"""
+    response = requests.get(url)
+    response.raise_for_status()
+    wdl_text = response.text
+    return wdl_text
 
 def collect_files(directory = './', filetype = '*', recursive = False):
     '''
@@ -97,9 +118,13 @@ def check_repo_head(repo_dir):
     else:
         return False
 
-def get_io(wdl_file):
+def get_io(wdl_file, local = False):
     """Get imports from WDL file"""
-    wf = WDL.load(wdl_file)
+    if local:
+        wf = WDL.load(wdl_file)
+    else:
+        wf_tmp = remote_load(wdl_file)
+        wf = WDL.load(wf_tmp)
     task2inputs = {}
     task2outputs = {}
     wf2inputs = {}
@@ -122,10 +147,13 @@ def get_io(wdl_file):
 
     return task_info, wf_info
 
-def obtain_namespace_inputs(wdl_file, namespace, task):
+def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     """Obtain the inputs of a task in a WDL file using REGEX"""
-    with open(wdl_file, 'r') as raw:
-        wdl_data = raw.read()
+    if local:
+        with open(wdl_file, 'r') as raw:
+            wdl_data = raw.read()
+    else:
+        wdl_data = remote_load(wdl_file)
     # prepare a compiled regex to find the task and its inputs
     re_comp = re.compile(r'call\W+' + f'{namespace}\.{task}' + r'\W+{' \
                        + r'\s+input:\s+([^}]+)', re.DOTALL)
@@ -149,9 +177,28 @@ def obtain_namespace_inputs(wdl_file, namespace, task):
 
     return namespace_inputs
 
-def get_downstream(foc_file, foc_info, wdl_files, 
+def get_downstream_remote(foc_file, foc_info,
+                          dependencies, task = 'export_taxon_tables'):
+    """Parse downstream dependencies of a WDL file remotely"""
+    preexisting = {}
+    downstream = {}
+    for wdl_file in dependencies:
+        wdl_txt = remote_load(wdl_file)
+        wdl = WDL.load(StringIO(wdl_txt))
+        for wdl_import in wdl.imports:
+            eprint(f'\t{wdl_file}')
+            task_io, wf_io = get_io(wdl_file)
+            namespace = wdl_import.namespace
+            downstream[wdl_file] = {'namespace': namespace,
+                                    'outputs': wf_io['outputs'],
+                                    'inputs': wf_io['inputs']}
+            preexisting[wdl_file] = obtain_namespace_inputs(wdl_file, namespace, task)
+
+    return downstream, preexisting
+
+def get_downstream_local(foc_file, foc_info, wdl_files, 
                    repo_dir, task = 'export_taxon_tables'):
-    """Get downstream dependencies of a WDL file"""
+    """Get and parse downstream dependencies of a WDL file"""
     preexisting = {}
     downstream = {}
     for wdl_file in wdl_files:
@@ -162,27 +209,15 @@ def get_downstream(foc_file, foc_info, wdl_files,
             uri_path = format_path(os.path.join(wdl_dir, uri))
             if uri_path == foc_file:
                 eprint(f'\t{wdl_file}')
-                task_io, wf_io = get_io(wdl_file)
+                task_io, wf_io = get_io(wdl_file, local = True)
                 namespace = wdl_import.namespace
                 downstream[wdl_file] = {'namespace': namespace,
                                         'outputs': wf_io['outputs'],
                                         'inputs': wf_io['inputs']}
-                preexisting[wdl_file] = obtain_namespace_inputs(wdl_file, namespace, task)
+                preexisting[wdl_file] = obtain_namespace_inputs(wdl_file, namespace, 
+                                                                task, local = True)
 
     return downstream, preexisting
-
-def get_upstream(foc_file, repo_dir):
-    """Get upstream dependencies of a WDL file"""
-    upstream = {}
-    wdl = WDL.load(foc_file)
-    wdl_dir = os.path.dirname(foc_file)
-    for wdl_import in wdl.imports:
-        uri = wdl_import.uri
-        uri_path = format_path(os.path.join(wdl_dir, uri))
-        upstream[uri_path] = wdl_import.namespace
-        eprint(uri_path, wdl_import.namespace)
-
-    return upstream
 
 def compile_outputs(io_dict):
     """Identify the outputs to eventually 
@@ -222,7 +257,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
 
     # Identify and print inputs from the workflow that do not correspond
     print()
-    task_in2type = defaultdict(set)
+    task_in2type_set = defaultdict(set)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
         print(f'{wdl_file}')
@@ -242,8 +277,8 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         # Only unexposed outputs are flagged for adding
         missing_inputs = set(outputs2expr.keys()).difference(set(preexisting[wdl_file]))
         # Identify the total inputs for populating the task file itself later
-        actual_inputs = set(preexisting[wdl_file]).intersection(acceptable_inputs).union(
-                            missing_inputs)
+        accepted_preexisting = set(preexisting[wdl_file]).intersection(acceptable_inputs)
+        actual_inputs = accepted_preexisting.union(missing_inputs)
 
         for missing_var in sorted(missing_inputs):
             missing_expr = outputs2expr[missing_var]
@@ -257,39 +292,36 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         for in_var in list(actual_inputs):
             # Populate a list of types to ensure there aren't multiple types
             if in_var in wdl2in2type[wdl_file]:
-                task_in2type[in_var].add(wdl2in2type[wdl_file][in_var])
+                task_in2type_set[in_var].add(wdl2in2type[wdl_file][in_var])
             if in_var in wdl2out2type[wdl_file]:
-                task_in2type[in_var].add(wdl2out2type[wdl_file][in_var])
+                task_in2type_set[in_var].add(wdl2out2type[wdl_file][in_var])
         print()
 
     # Report if discrepant types for a given variable name
-    failed_vars = [k for k, v in task_in2type.items() if len(v) > 1]
+    failed_vars = [k for k, v in task_in2type_set.items() if len(v) > 1]
     if any(failed_vars):
         eprint('ERROR: some variables have multiple types across workflows: ')
         for failed_var in failed_vars:
-            eprint(f'{failed_var} {task_in2type[failed_var]}')
+            eprint(f'{failed_var} {task_in2type_set[failed_var]}')
         sys.exit(6)
+    task_in2type = {k: list(v)[0] for k, v in task_in2type_set.items()}
 
     # Report the discrepancies for the input task
-
     print(input_file)
+    needed_inputs = set(task_in2type.keys()).difference(set(input_inputs.keys()))
     print('\tAdd to inputs:')
-    for var_name, typ in out_hash2wdl:
-        if var_name not in input_inputs:
-            # make all inputs optional
-            if not typ.endswith('?'):
-                typ = typ + '?'
-            print(f'{typ} {var_name}')
-    
-    extraneous_inputs = input_inputs.difference(set(x[0] for x in out_hash2wdl))
-    extraneous_inputs = extraneous_inputs.difference(ignored_inputs)
+    for in_var in sorted(needed_inputs):
+        # all types are assumed to be optional
+        print(f'{task_in2type[in_var]}? {in_var}')
+
+    extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
+    extra_inputs = extra_inputs_prep.difference(ignored_inputs)
     print('\tRemove from inputs:')
-    for inp in sorted(extraneous_inputs):
+    for inp in sorted(extra_inputs):
         print(f'{inp}')
-    # add removing section
 
             
-def main(input_file, repo_dir, update = False, task_name = 'export_taxon_tables',
+def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
          ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'}):
     """Main function:
     Compile inputs from input_file
@@ -301,13 +333,9 @@ def main(input_file, repo_dir, update = False, task_name = 'export_taxon_tables'
     Report missing inputs in dependencies' task calls
     Report extra inputs in dependencies' task calls
     """
-    # Check if repo is a git repo
-    if not check_repo_head(repo_dir):
-        eprint("ERROR: Repo directory is not a git repository")
-        sys.exit(1)
 
     # Get inputs and outputs of focal WDL file
-    task_io, wf_io = get_io(input_file)
+    task_io, wf_io = get_io(input_file, local = bool(repo_dir))
     if task_io and wf_io:
         eprint("ERROR: this script does not support WDL files with both tasks and workflows")
         sys.exit(2)
@@ -316,40 +344,64 @@ def main(input_file, repo_dir, update = False, task_name = 'export_taxon_tables'
     else:
         wdl_info = wf_io
 
-    input_inputs = set(x.name for x in wdl_info['inputs'][task_name])
+    input_inputs = {x.name: str(x.type) for x in wdl_info['inputs'][task_name]}
 
-    # Collect all WDL files in repo and ID dependencies
-    wdl_files_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
-    wdl_files = sorted(wdl_files_prep.difference({input_file}))
     eprint('Downstream dependencies:')
-    downstream_io, preexisting_inputs = get_downstream(input_file, wdl_info, 
-                                                     wdl_files, repo_dir)
+    if repo_dir:
+        # Collect all WDL files in local repo and ID dependencies
+        wdl_files_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
+        wdl_files = sorted(wdl_files_prep.difference({input_file}))
+        downstream_io, preexisting_inputs = get_downstream_local(input_file, wdl_info, 
+                                                           wdl_files, repo_dir)
+    else:
+        downstream_io, preexisting_inputs = get_downstream_remote(input_file, wdl_info,
+                                                                  dependencies)
+        
     if not downstream_io:
         eprint("No downstream dependencies found")
         sys.exit(3)
-
-#    eprint('Upstream dependencies:') 
- #   upstreams = get_upstream(input_file, repo_dir)
 
     wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type \
         = compile_outputs(downstream_io)
 
     # Print the new inputs for the focal WDL file
-    if not update:
-        print_changes(input_file, input_inputs, wdl2out_hash, 
-                      wdl2namespace, task_name, preexisting_inputs, task_name,
-                      ignored_inputs, wdl2in_hash, wdl2in2type, wdl2out2type)
+    print_changes(input_file, input_inputs, wdl2out_hash, 
+                  wdl2namespace, task_name, preexisting_inputs, task_name,
+                  ignored_inputs, wdl2in_hash, wdl2in2type, wdl2out2type)
 
 def cli():
-    parser = argparse.ArgumentParser(description = "Sync WDL inputs/outputs")
-    parser.add_argument("-i", "--input", help = "WDL file to sync", required = True)
-    parser.add_argument("-r", "--repo", help = "Base repo dir containing WDL files", required = True)
-   # parser.add_argument("-u", "--update", action = "store_true", 
-                     #   help = "Update the focal WDL and dependencies with new I/O")
+    base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
+    parser = argparse.ArgumentParser(description = "Sync task_broad_terra_tools.wdl inputs/outputs " \
+                                     + "with downstream dependencies.")
+#    parser.add_argument("-b", "--branch", default = 'main', 
+ #                       help = 'Remote git branch for remote runs; DEFAULT: "main"')
+  #  parser.add_argument("-u", "--url", help = f'Remote git URL; DEFAULT: {base_repo_url}',
+   #                     default = base_repo_url)
+    parser.add_argument("-i", "--input", required = True,
+                        help = '[-r] Local task_broad_terra_tools.wdl; Requires -r')
+    parser.add_argument("-r", "--repo", required = True,
+                        help = "[-i] Local git repo dir for local runs; Requires -i")
     args = parser.parse_args()
 
-    main(format_path(args.input), format_path(args.repo)) #, args.downstream)
+ #   branch_url = args.url + args.branch + '/'
+    if not args.input and not args.repo:
+        rel_source_task, rel_dependencies = set_wdl_paths()
+        source_task = f'{branch_url}{rel_source_task}'
+        dependencies = [f'{branch_url}{x}' for x in rel_dependencies]
+        local_repo_path = None
+    elif not args.input or not args.repo:
+        eprint('ERROR: -i and -r are required together')
+        sys.exit(13)
+    else:
+        source_task = format_path(args.input)
+        local_repo_path = format_path(args.repo)
+        # Check if repo is a git repo for local run
+        if not check_repo_head(local_repo_path):
+            eprint("ERROR: Repo directory is not a git repository")
+            sys.exit(1)
+        dependencies = []
 
+    main(source_task, dependencies, local_repo_path) #, args.downstream)
 
 if __name__ == '__main__':
     cli()
