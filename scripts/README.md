@@ -133,7 +133,7 @@ Now check the nextclade_versions.csv to see what nextclade tags need to be udpat
 
 ### update_taxon_tables_io.py
 
-This python script facilitates synchronization between `task_broad_terra_tools.wdl` I/O and its downstream dependencies' I/O. It will then report which additions and removals need to be made to the task and downstream workflow dependencies. It currently operates locally, though is staged for remote operation following minor changes.
+This python script facilitates synchronization between `task_broad_terra_tools.wdl` I/O and its downstream dependencies' I/O. It will then report which additions and removals need to be made to the task and downstream workflow dependencies. It currently operates locally, identifying downstream dependencies dynamically, though this script is staged for remote operation using hard-coded dependency links following minor changes. This script is also staged to update these files in place.
 
 #### requirements
 Two inputs required:

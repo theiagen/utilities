@@ -332,6 +332,14 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
     for inp in sorted(extra_inputs):
         print(f'{inp}')
 
+    print('\tReplace "new_table" with this:')
+    print('    new_table = {')
+    print('      "entity:${sample_table}_id": "~{samplename}"', end = '')
+    for in_var in sorted(task_in2type.keys()):
+        print(f',\n      "{in_var}": ' + '"~{' + f'{in_var}' + '}"', 
+              end = '')
+    print('\n    }')
+
             
 def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
          ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'}):
