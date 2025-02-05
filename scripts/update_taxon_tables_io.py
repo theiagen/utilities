@@ -44,14 +44,14 @@ def remote_load(url):
     return wdl_text
 
 def collect_files(directory = './', filetype = '*', recursive = False):
-    '''
+    """
     Inputs: directory path, file extension (no "."), recursivity bool
     Outputs: list of files with `filetype`
     If the filetype is a list, split it, else make a list of the one entry.
     Parse the environment variable if applicable. Then, obtain a clean, full 
     version of the input directory. Glob to obtain the filelist for each 
     filetype based on whether or not it is recursive.
-    '''
+    """
 
     if type(filetype) == list:
         filetypes = filetype.split()
@@ -75,7 +75,7 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 def expand_env_var(path):
-    '''Expands environment variables by regex substitution'''
+    """Expands environment variables by regex substitution"""
 
     envs = re.findall(r'\$[^/]+', path)
     for env in envs:
@@ -84,7 +84,7 @@ def expand_env_var(path):
     return path.replace('//','/')
 
 def format_path(path, force_dir = False):
-    '''Convert all path types to absolute path with explicit directory ending'''
+    """Convert all path types to absolute path with explicit directory ending"""
 
     if path:
         path = os.path.expanduser(path)
@@ -260,8 +260,9 @@ def compile_downstream_io(io_dict):
     return wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type
 
 def print_changes(input_file, input_inputs, wdl2out_hash, 
-                  wdl2namespace, task_name, preexisting, task,
-                  ignored_inputs, wdl2in_hash, wdl2in2type, wdl2out2type):
+                  wdl2namespace, task_name, preexisting,
+                  ignored_inputs, ignored_outputs, 
+                  wdl2in_hash, wdl2in2type, wdl2out2type):
     """Print the input task's new inputs"""
 
     # Identify and print inputs from the workflow that do not correspond
@@ -270,8 +271,8 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
     task_in2type_set = defaultdict(set)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
-        print(f'{wdl_file}')
-        print(f'\tAdd to {namespace}.{task_name} call:')
+        print(f'!! {wdl_file}')
+        print(f'\t!! Add to {namespace}.{task_name} call:')
         outputs2expr, inputs2expr = {}, {}
         # Compile the variable names and expressions for the outputs and inputs
         for task0, outputs in task_dict.items():
@@ -286,7 +287,8 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         # Extraneous task inputs are preexisting inputs that aren't acceptable
         extra_inputs = set(preexisting[wdl_file]).difference(acceptable_inputs)
         # Only unexposed outputs are flagged for adding
-        missing_inputs = set(outputs2expr.keys()).difference(set(preexisting[wdl_file]))
+        missing_inputs_prep = set(outputs2expr.keys()).difference(set(preexisting[wdl_file]))
+        missing_inputs = missing_inputs_prep.difference(ignored_outputs)
         # Identify the total inputs for populating the task file itself later
         accepted_preexisting = set(preexisting[wdl_file]).intersection(acceptable_inputs)
         actual_inputs = accepted_preexisting.union(missing_inputs)
@@ -294,7 +296,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         for missing_var in sorted(missing_inputs):
             missing_expr = outputs2expr[missing_var]
             print(f'{missing_var} = {missing_expr},')
-        print(f'\tRemove from {namespace}.{task_name} call:')
+        print(f'\n\t!! Remove from {namespace}.{task_name} call:')
         for extra_var in sorted(extra_inputs):
             extra_expr = preexisting[wdl_file][extra_var]
             print(f'{extra_var} = {extra_expr}')
@@ -320,19 +322,19 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
     # Report the discrepancies for the input task
     print(input_file)
     needed_inputs = set(task_in2type.keys()).difference(set(input_inputs.keys()))
-    print('\tAdd to inputs:')
+    print('\t!! Add to inputs:')
     for in_var in sorted(needed_inputs):
         # all types are assumed to be optional
-        print(f'{task_in2type[in_var]}? {in_var},')
+        print(f'{task_in2type[in_var]}? {in_var}')
 
     # Report the extraneous inputs for the input task
     extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
     extra_inputs = extra_inputs_prep.difference(ignored_inputs)
-    print('\tRemove from inputs:')
+    print('\n\t!! Remove from inputs:')
     for inp in sorted(extra_inputs):
         print(f'{inp}')
 
-    print('\tReplace "new_table" with this:')
+    print('\n\t!! Replace "new_table" with this:')
     print('    new_table = {')
     print('      "entity:${sample_table}_id": "~{samplename}"', end = '')
     for in_var in sorted(task_in2type.keys()):
@@ -342,7 +344,8 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
 
             
 def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
-         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'}):
+         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'},
+         ignored_outputs = {'taxon_table_status'}):
     """Main function:
     Compile inputs from input_file
     ID downstream dependencies
@@ -388,8 +391,9 @@ def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
 
     # Print the new inputs for the focal WDL file
     print_changes(input_file, input_inputs, wdl2out_hash, 
-                  wdl2namespace, task_name, preexisting_inputs, task_name,
-                  ignored_inputs, wdl2in_hash, wdl2in2type, wdl2out2type)
+                  wdl2namespace, task_name, preexisting_inputs,
+                  ignored_inputs, ignored_outputs, 
+                  wdl2in_hash, wdl2in2type, wdl2out2type)
 
 def cli():
     base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
