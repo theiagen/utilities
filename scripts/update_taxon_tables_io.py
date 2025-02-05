@@ -344,7 +344,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
 
             
 def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
-         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'},
+         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker', 'sample_taxon'},
          ignored_outputs = {'taxon_table_status'}):
     """Main function:
     Compile inputs from input_file
