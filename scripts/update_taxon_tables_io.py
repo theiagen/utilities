@@ -293,7 +293,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
 
         for missing_var in sorted(missing_inputs):
             missing_expr = outputs2expr[missing_var]
-            print(f'{missing_var} = {missing_expr}')
+            print(f'{missing_var} = {missing_expr},')
         print(f'\tRemove from {namespace}.{task_name} call:')
         for extra_var in sorted(extra_inputs):
             extra_expr = preexisting[wdl_file][extra_var]
@@ -323,7 +323,7 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
     print('\tAdd to inputs:')
     for in_var in sorted(needed_inputs):
         # all types are assumed to be optional
-        print(f'{task_in2type[in_var]}? {in_var}')
+        print(f'{task_in2type[in_var]}? {in_var},')
 
     # Report the extraneous inputs for the input task
     extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
