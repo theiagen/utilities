@@ -143,5 +143,5 @@ MiniWDL is a required package
 
 #### usage
 ```bash
-$ python update_taxon_tables.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl> 
+$ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl> 
 ```
