@@ -135,6 +135,8 @@ Now check the nextclade_versions.csv to see what nextclade tags need to be udpat
 
 This python script facilitates synchronization between `task_broad_terra_tools.wdl` I/O and its downstream dependencies' I/O. It will then report which additions and removals need to be made to the task and downstream workflow dependencies. It currently operates locally, identifying downstream dependencies dynamically, though this script is staged for remote operation using hard-coded dependency links following minor changes. This script is also staged to update these files in place.
 
+NOTE: The WDL library will fail to parse dependencies if it cannot link I/O between workflows and task. If no updates are necessary then nothing will be printed for the dependency files.
+
 #### requirements
 Two inputs required:
  - Local Git repo (PHB) directory
