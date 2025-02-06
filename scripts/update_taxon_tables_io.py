@@ -283,7 +283,9 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
                 inputs2expr[in_name] = in_var
 
         # The workflow's inputs and outputs are the only acceptable inputs to the task
-        acceptable_inputs = set(inputs2expr.keys()).union(set(outputs2expr.keys()))
+        acceptable_inputs_prep = set(inputs2expr.keys()).union(set(outputs2expr.keys()))
+        # Add special exceptions
+        acceptable_inputs = acceptable_inputs_prep.union(ignored_inputs)
         # Extraneous task inputs are preexisting inputs that aren't acceptable
         extra_inputs = set(preexisting[wdl_file]).difference(acceptable_inputs)
         # Only unexposed outputs are flagged for adding
