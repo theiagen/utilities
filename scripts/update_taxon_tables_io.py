@@ -2,7 +2,7 @@
 
 """
 Input task_broad_terra_tables.wdl (task) and PHB repo and identify task I/O that is
-discrepant with downstream workflows
+discrepant with downstream workflows. Propose updates to the task I/O and documentation.
 
 - Currently prints recommended changes, but staged for automated updating in place
 - Does not account for variables that have the same name, but different type declarations
@@ -117,7 +117,7 @@ def check_repo_head(repo_dir):
         return False
 
 def get_io(wdl_file, local = False):
-    """Get imports from WDL file.
+    """Get inputs and outputs of a WDL file.
     Currently only suitable for WDL files with either tasks or workflows"""
     if local:
         wf = WDL.load(wdl_file)
@@ -204,13 +204,13 @@ def get_downstream_remote(foc_file, foc_info,
 
     return downstream, preexisting
 
-def get_downstream_local(foc_file, foc_info, wdl_files, 
-                   repo_dir, task = 'export_taxon_tables'):
+def get_downstream_local(foc_file, downstream_wdls, 
+                         task = 'export_taxon_tables'):
     """Get and parse downstream dependencies of a WDL file"""
     preexisting = {}
     downstream = {}
 
-    for wdl_file in wdl_files:
+    for wdl_file in downstream_wdls:
         wdl = WDL.load(wdl_file)
         wdl_dir = os.path.dirname(wdl_file)
         for wdl_import in wdl.imports:
@@ -259,16 +259,98 @@ def compile_downstream_io(io_dict):
 
     return wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type
 
+def identify_documentation(downstream_wdls, base_dir,
+                           doc_dir = 'docs/workflows/genomic_characterization/'):
+    """Identify documentation files that need to be updated.
+    Assumes only Theia- documentation will be affected"""
+    downstream_wdl_dirs = sorted(set(os.path.basename(os.path.dirname(x)) for x in downstream_wdls))
+    doc_files = [f'{base_dir}{doc_dir}{x}.md' for x in downstream_wdl_dirs]
+    return doc_files
+
+def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2type,
+                                  task = 'export_taxon_tables'):
+    """Compile the changes to the documentation file by extracting preexisting
+    inputs and formatting for export_taxon_tables standards"""
+    suffix2declar = {'fasta': 'FASTA', 'illumina_pe': 'PE',
+                     'illumina_se': 'SE', 'ont': 'ONT'}
+    in_table = False
+    input2meta = defaultdict(dict)
+    with open(doc_file, 'r') as doc:
+        for line in doc:
+            if in_table:
+                # tables must not have empty lines between
+                if not line.startswith('|'):
+                    in_table = False
+                    break
+                data = line.strip().split('|')
+                if len(data) != 9:
+                    eprint('ERROR: Table in documentation file is not formatted correctly')
+                    eprint(f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
+                    sys.exit(7)
+                # Extract the variable names and types from the table
+                table_task_name = data[1].strip()
+                table_input_name = data[2].strip().replace('**', '')
+                input2meta[table_input_name][table_task_name] = [x.strip() for x in data[3:]]
+            elif line.lower().startswith('| **terra task name** |'):
+                in_table = True
+                data = line.strip().split('|')
+                if len(data) != 9:
+                    eprint('ERROR: Table in documentation file is not formatted correctly')
+                    eprint(f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
+                    sys.exit(7)
+    
+    # Compile the changes to the documentation file
+    doc_changes = ''
+    for in_ in sorted(accepted_inputs):
+        # Prefer to populate with preexisting documentation as reference
+        if in_ in input2meta:
+            task2meta = input2meta[in_]
+            # Only populate with inputs that match {task}
+            # Preferentially use a preexisting entry for the {task}
+            if task in task2meta:
+            # Otherwise we need to reference another task's input
+                doc_changes += f'| {task} | **{in_}** | {task2meta[task][0]} | {task2meta[task][1]} ' \
+                            + f' | {task2meta[task][2]} | {task2meta[task][3]} | {task2meta[task][4]} |\n'
+            else:
+                input_tasks = sorted(task2meta.keys())
+                input_task = input_tasks[0]
+                if len(input_tasks) > 1:
+                    eprint(f'WARNING: Multiple tasks reference for {in_} in {doc_file}: ' \
+                            + f'{input_tasks}; using {input_task}')
+                # Adhere to the export_taxon_tables standard while using other task's inputs
+                doc_changes += f'| {task} | **{in_}** | {task2meta[input_task][0]} | Internal component, do not modify ' \
+                             + f'| | Do not modify, Optional | {task2meta[input_task][-2]} |\n'
+        else:
+            # Determine what workflows the input is used in
+            seq_techs = []
+            files_basenames = [os.path.basename(x) for x in input2files[in_]]
+            for file_ in files_basenames:
+                for suffix, declar in suffix2declar.items():
+                    if suffix in file_:
+                        seq_techs.append(declar)
+                        break
+            seq_techs.sort()
+            # Will fail here if the input is not found in any workflows, or prior documentation,
+            # which is the case for inputs that are unique to the focal WDL file, such as sample_taxon
+            doc_changes += f'| {task} | **{in_}** | {in2type[in_]} | Internal component, do not modify ' \
+                        + f'| | Do not modify, Optional | {", ".join(seq_techs)} |\n'
+
+    # convert double spaces generated from blank {task} entries
+    return doc_changes.replace('  ', ' ')
+
 def print_changes(input_file, input_inputs, wdl2out_hash, 
                   wdl2namespace, task_name, preexisting,
                   ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type):
-    """Print the input task's new inputs"""
+                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files):
+    """Print calls to input task's input changes, the input task's I/O changes, and
+    documentation updates to input changes"""
 
     # Identify and print inputs from the workflow that do not correspond
     print()
     # Collect the types for each variable name to check and refer to later
     task_in2type_set = defaultdict(set)
+    # Collect the files that potential focal task inputs are found in
+    input2files = defaultdict(list)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
         print(f'!! {wdl_file}')
@@ -278,9 +360,11 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
         for task0, outputs in task_dict.items():
             for out_name, out_var in outputs:
                 outputs2expr[out_name] = out_var
+                input2files[out_name].append(wdl_file)
         for task0, inputs in wdl2in_hash[wdl_file].items():
             for in_name, in_var in inputs:
                 inputs2expr[in_name] = in_var
+                input2files[in_name].append(wdl_file)
 
         # The workflow's inputs and outputs are the only acceptable inputs to the task
         acceptable_inputs_prep = set(inputs2expr.keys()).union(set(outputs2expr.keys()))
@@ -344,19 +428,26 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
               end = '')
     print('\n    }')
 
+    print()
+    for doc_file in doc_files:
+        doc_changes = compile_documentation_changes(doc_file, actual_inputs, 
+                                                    input2files, task_in2type)
+        print(doc_file)
+        print(f'\t!! Change {doc_file} {task_name} inputs table with:')
+        print(doc_changes)
+
             
-def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
+def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables',
          ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker', 'sample_taxon'},
-         ignored_outputs = {'taxon_table_status'}):
+         ignored_outputs = {'taxon_table_status'}, remote = False):
     """Main function:
     Compile inputs from input_file
     ID downstream dependencies
     Extract I/O from downstream dependencies
     Extract preexisting inputs to input_file task from dependency
-    Report missing inputs from input_file
-    Report extra inputs from input_file
-    Report missing inputs in dependencies' task calls
-    Report extra inputs in dependencies' task calls
+    Report task call changes for downstream dependencies
+    Report input changes for input_file
+    Report documentation changes for input_file inputs
     """
 
     # Get inputs and outputs of focal WDL file
@@ -373,15 +464,16 @@ def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
     input_inputs = {x.name: str(x.type) for x in wdl_info['inputs'][task_name]}
 
     eprint('Downstream dependencies:')
-    if repo_dir:
+    if not remote:
         # Collect all WDL files in local repo and ID dependencies
-        wdl_files_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
-        wdl_files = sorted(wdl_files_prep.difference({input_file}))
-        downstream_io, preexisting_inputs = get_downstream_local(input_file, wdl_info, 
-                                                           wdl_files, repo_dir)
+        wdls_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
+        wdl_files = sorted(wdls_prep.difference({input_file}))
+        downstream_io, preexisting_inputs = get_downstream_local(input_file, 
+                                                                 wdl_files)
+        downstream_wdls = sorted(downstream_io.keys())
     else:
         downstream_io, preexisting_inputs = get_downstream_remote(input_file, wdl_info,
-                                                                  dependencies)
+                                                                  downstream_wdls)
         
     if not downstream_io:
         eprint("No downstream dependencies found")
@@ -391,11 +483,15 @@ def main(input_file, dependencies, repo_dir, task_name = 'export_taxon_tables',
     wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type \
         = compile_downstream_io(downstream_io)
 
+    # Compile documentation basenames for updates
+    doc_files = identify_documentation(downstream_wdls, repo_dir,
+                                       doc_dir = 'docs/workflows/genomic_characterization/')
+
     # Print the new inputs for the focal WDL file
     print_changes(input_file, input_inputs, wdl2out_hash, 
                   wdl2namespace, task_name, preexisting_inputs,
                   ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type)
+                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files)
 
 def cli():
     base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
@@ -411,25 +507,26 @@ def cli():
                         help = "[-i] Local git repo dir for local runs; Requires -i")
     args = parser.parse_args()
 
- #   branch_url = args.url + args.branch + '/'
     if not args.input and not args.repo:
+        remote = True
+        #   repo_uri = args.url + args.branch + '/'
         rel_source_task, rel_dependencies = set_wdl_paths()
-        source_task = f'{branch_url}{rel_source_task}'
-        dependencies = [f'{branch_url}{x}' for x in rel_dependencies]
-        local_repo_path = None
+        source_task = f'{repo_uri}{rel_source_task}'
+        dependencies = [f'{repo_uri}{x}' for x in rel_dependencies]
     elif not args.input or not args.repo:
         eprint('ERROR: -i and -r are required together')
         sys.exit(13)
     else:
+        remote = False
         source_task = format_path(args.input)
-        local_repo_path = format_path(args.repo)
+        repo_uri = format_path(args.repo)
         # Check if repo is a git repo for local run
-        if not check_repo_head(local_repo_path):
+        if not check_repo_head(repo_uri):
             eprint("ERROR: Repo directory is not a git repository")
             sys.exit(1)
         dependencies = []
 
-    main(source_task, dependencies, local_repo_path)
+    main(source_task, dependencies, repo_uri, remote = remote)
 
 if __name__ == '__main__':
     cli()
