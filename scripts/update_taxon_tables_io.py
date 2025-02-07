@@ -191,7 +191,7 @@ def get_downstream_remote(foc_file, foc_info,
         wdl_txt = remote_load(wdl_file)
         wdl = WDL.load(StringIO(wdl_txt))
         for wdl_import in wdl.imports:
-            logging.INFO(f'\t{wdl_file}')
+            logging.info(f'\t{wdl_file}')
             task_io, wf_io = get_io(wdl_file)
             namespace = wdl_import.namespace
             downstream[wdl_file] = {'namespace': namespace,
