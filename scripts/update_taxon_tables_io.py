@@ -420,9 +420,8 @@ def output_changes(input_file, input_inputs, wdl2out_hash,
     file_obj.write('      "entity:${sample_table}_id": "~{samplename}"')
     for in_var in sorted(task_in2type.keys()):
         file_obj.write(f',\n      "{in_var}": ' + '"~{' + f'{in_var}' + '}"')
-    file_obj.write('\n    }')
+    file_obj.write('\n    }\n\n')
 
-    file_obj.write('\n')
     for doc_file in doc_files:
         doc_changes = compile_documentation_changes(doc_file, actual_inputs, 
                                                     input2files, task_in2type)
