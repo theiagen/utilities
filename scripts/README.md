@@ -133,7 +133,7 @@ Now check the nextclade_versions.csv to see what nextclade tags need to be udpat
 
 ### update_taxon_tables_io.py
 
-This python script facilitates synchronization between `task_broad_terra_tools.wdl` I/O and its downstream dependencies' I/O. It will then report which additions and removals need to be made to the task and downstream workflow dependencies. It currently operates locally, identifying downstream dependencies dynamically, though this script is staged for remote operation using hard-coded dependency links following minor changes. This script is also staged to update these files in place.
+This python script facilitates synchronization between `task_broad_terra_tools.wdl` I/O and its downstream dependencies' I/O. It will then report in `$PWD/update_taxon_tables_io.out` which additions and removals need to be made to the task, downstream workflow dependencies, and documentation. It currently operates locally, identifying downstream dependencies dynamically, though this script is staged for remote operation using hard-coded dependency links following minor changes. This script is also staged to update these files in place.
 
 NOTE: The WDL library will fail to parse dependencies if it cannot link I/O between workflows and task. If no updates are necessary then nothing will be printed for the dependency files.
 
@@ -145,5 +145,5 @@ MiniWDL is a required package
 
 #### usage
 ```bash
-$ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl> > suggested_updates.txt 
+$ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl>
 ```
