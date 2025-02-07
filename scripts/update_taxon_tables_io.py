@@ -4,7 +4,7 @@
 Input task_broad_terra_tables.wdl (task) and PHB repo and identify task I/O that is
 discrepant with downstream workflows. Propose updates to the task I/O and documentation.
 
-- Currently prints recommended changes, but staged for automated updating in place
+- Currently writes recommended changes, but staged for automated updating in place
 - Does not account for variables that have the same name, but different type declarations
 - Does not accomodate multiple calls to task in same workflow
 - Staged for remote runs, but loading remote WDL files with WDL is currently non-functional,
@@ -15,16 +15,19 @@ import os
 import re
 import sys
 import glob
+import logging
 try:
     import WDL 
 except ImportError:
-    sys.stderr.write("ERROR: WDL Python package not found\nInstall MiniWDL\n")
-    sys.exit(3)
+    raise ImportError("ERROR: WDL Python package not found\nInstall MiniWDL\n")
 import requests
 import argparse
 from io import StringIO
 from collections import defaultdict
 
+logging.basicConfig(level = logging.DEBUG,
+                    format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def set_wdl_paths():
     """Set dependency paths relative to remote repo"""
@@ -69,10 +72,6 @@ def collect_files(directory = './', filetype = '*', recursive = False):
                                       recursive = recursive))
 
     return filelist
-
-def eprint(*args, **kwargs):
-    """Print to stderr"""
-    print(*args, file=sys.stderr, **kwargs)
 
 def expand_env_var(path):
     """Expands environment variables by regex substitution"""
@@ -164,13 +163,11 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
 
     # Only one instance of the task should be found
     if len(list(matches)) > 1:
-        eprint(f'ERROR: Multiple instances of {namespace}.{task} found in {wdl_file}' \
+        raise AttributeError(f'ERROR: Multiple instances of {namespace}.{task} found in {wdl_file}' \
                 + ' - this script is not equipped to handle this')
-        sys.exit(4)
     elif '{' in matches[0]:
-        eprint('ERROR: REGEX not equipped to handle nested "{" ' \
+        raise AttributeError('ERROR: REGEX not equipped to handle nested "{" ' \
              + f'in {namespace}.{task} in {wdl_file}')
-        sys.exit(5)
 
     # Parse the input variables and expressions
     namespace_inputs = {}
@@ -194,7 +191,7 @@ def get_downstream_remote(foc_file, foc_info,
         wdl_txt = remote_load(wdl_file)
         wdl = WDL.load(StringIO(wdl_txt))
         for wdl_import in wdl.imports:
-            eprint(f'\t{wdl_file}')
+            logging.INFO(f'\t{wdl_file}')
             task_io, wf_io = get_io(wdl_file)
             namespace = wdl_import.namespace
             downstream[wdl_file] = {'namespace': namespace,
@@ -218,7 +215,7 @@ def get_downstream_local(foc_file, downstream_wdls,
             uri_path = format_path(os.path.join(wdl_dir, uri))
             # Check if the focal file is imported by the downstream file
             if uri_path == foc_file:
-                eprint(f'\t{wdl_file}')
+                logger.info(f'\t{wdl_file}')
                 task_io, wf_io = get_io(wdl_file, local = True)
                 namespace = wdl_import.namespace
                 # Get I/O from the downstream file
@@ -284,9 +281,8 @@ def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2typ
                     break
                 data = line.strip().split('|')
                 if len(data) != 9:
-                    eprint('ERROR: Table in documentation file is not formatted correctly')
-                    eprint(f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
-                    sys.exit(7)
+                    raise AttribbuteError('ERROR: Table in documentation file is not formatted correctly ' \
+                        + f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
                 # Extract the variable names and types from the table
                 table_task_name = data[1].strip()
                 table_input_name = data[2].strip().replace('**', '')
@@ -295,9 +291,8 @@ def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2typ
                 in_table = True
                 data = line.strip().split('|')
                 if len(data) != 9:
-                    eprint('ERROR: Table in documentation file is not formatted correctly')
-                    eprint(f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
-                    sys.exit(7)
+                    raise AttributeError('ERROR: Table in documentation file is not formatted correctly ' \
+                        + f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
     
     # Compile the changes to the documentation file
     doc_changes = ''
@@ -315,7 +310,7 @@ def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2typ
                 input_tasks = sorted(task2meta.keys())
                 input_task = input_tasks[0]
                 if len(input_tasks) > 1:
-                    eprint(f'WARNING: Multiple tasks reference for {in_} in {doc_file}: ' \
+                    logger.warning(f'Multiple tasks reference for {in_} in {doc_file}: ' \
                             + f'{input_tasks}; using {input_task}')
                 # Adhere to the export_taxon_tables standard while using other task's inputs
                 doc_changes += f'| {task} | **{in_}** | {task2meta[input_task][0]} | Internal component, do not modify ' \
@@ -338,23 +333,23 @@ def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2typ
     # convert double spaces generated from blank {task} entries
     return doc_changes.replace('  ', ' ')
 
-def print_changes(input_file, input_inputs, wdl2out_hash, 
+def output_changes(input_file, input_inputs, wdl2out_hash, 
                   wdl2namespace, task_name, preexisting,
                   ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files):
-    """Print calls to input task's input changes, the input task's I/O changes, and
+                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files,
+                  file_obj = sys.stdout):
+    """Output calls to input task's input changes, the input task's I/O changes, and
     documentation updates to input changes"""
 
-    # Identify and print inputs from the workflow that do not correspond
-    print()
+    # Identify and write inputs from the workflow that do not correspond
     # Collect the types for each variable name to check and refer to later
     task_in2type_set = defaultdict(set)
     # Collect the files that potential focal task inputs are found in
     input2files = defaultdict(list)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
-        print(f'!! {wdl_file}')
-        print(f'\t!! Add to {namespace}.{task_name} call:')
+        file_obj.write(f'!! {wdl_file}\n')
+        file_obj.write(f'\t!! Add to {namespace}.{task_name} call:\n')
         outputs2expr, inputs2expr = {}, {}
         # Compile the variable names and expressions for the outputs and inputs
         for task0, outputs in task_dict.items():
@@ -381,11 +376,11 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
 
         for missing_var in sorted(missing_inputs):
             missing_expr = outputs2expr[missing_var]
-            print(f'{missing_var} = {missing_expr},')
-        print(f'\n\t!! Remove from {namespace}.{task_name} call:')
+            file_obj.write(f'{missing_var} = {missing_expr},\n')
+        file_obj.write(f'\n\t!! Remove from {namespace}.{task_name} call:\n')
         for extra_var in sorted(extra_inputs):
             extra_expr = preexisting[wdl_file][extra_var]
-            print(f'{extra_var} = {extra_expr}')
+            file_obj.write(f'{extra_var} = {extra_expr}\n')
 
         # Crude check to obtain the type for populating the task's input 
         for in_var in list(actual_inputs):
@@ -394,50 +389,50 @@ def print_changes(input_file, input_inputs, wdl2out_hash,
                 task_in2type_set[in_var].add(wdl2in2type[wdl_file][in_var])
             if in_var in wdl2out2type[wdl_file]:
                 task_in2type_set[in_var].add(wdl2out2type[wdl_file][in_var])
-        print()
+        file_obj.write('\n')
 
     # Report if discrepant types for a given variable name
     failed_vars = [k for k, v in task_in2type_set.items() if len(v) > 1]
     if any(failed_vars):
-        eprint('ERROR: some variables have multiple types across workflows: ')
+        logger.error('some variables have multiple types across workflows: ')
         for failed_var in failed_vars:
-            eprint(f'{failed_var} {task_in2type_set[failed_var]}')
-        sys.exit(6)
+            logger.error(f'{failed_var} {task_in2type_set[failed_var]}')
+        raise ValueError
     task_in2type = {k: list(v)[0] for k, v in task_in2type_set.items()}
 
     # Report the discrepancies for the input task
-    print(input_file)
+    file_obj.write(f'{input_file}\n')
     needed_inputs = set(task_in2type.keys()).difference(set(input_inputs.keys()))
-    print('\t!! Add to inputs:')
+    file_obj.write('\t!! Add to inputs:\n')
     for in_var in sorted(needed_inputs):
         # all types are assumed to be optional
-        print(f'{task_in2type[in_var]}? {in_var}')
+        file_obj.write(f'{task_in2type[in_var]}? {in_var}\n')
 
     # Report the extraneous inputs for the input task
     extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
     extra_inputs = extra_inputs_prep.difference(ignored_inputs)
-    print('\n\t!! Remove from inputs:')
+    file_obj.write('\n\t!! Remove from inputs:\n')
     for inp in sorted(extra_inputs):
-        print(f'{inp}')
+        file_obj.write(f'{inp}\n')
 
-    print('\n\t!! Replace "new_table" with this:')
-    print('    new_table = {')
-    print('      "entity:${sample_table}_id": "~{samplename}"', end = '')
+    file_obj.write('\n\t!! Replace "new_table" with this:\n')
+    file_obj.write('    new_table = {\n')
+    file_obj.write('      "entity:${sample_table}_id": "~{samplename}"')
     for in_var in sorted(task_in2type.keys()):
-        print(f',\n      "{in_var}": ' + '"~{' + f'{in_var}' + '}"', 
-              end = '')
-    print('\n    }')
+        file_obj.write(f',\n      "{in_var}": ' + '"~{' + f'{in_var}' + '}"')
+    file_obj.write('\n    }')
 
-    print()
+    file_obj.write('\n')
     for doc_file in doc_files:
         doc_changes = compile_documentation_changes(doc_file, actual_inputs, 
                                                     input2files, task_in2type)
-        print(doc_file)
-        print(f'\t!! Change {doc_file} {task_name} inputs table with:')
-        print(doc_changes)
+        file_obj.write(f'{doc_file}\n')
+        file_obj.write(f'\t!! Change {doc_file} {task_name} inputs table with:\n')
+        file_obj.write(f'{doc_changes}\n')
 
             
-def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables',
+def main(input_file, downstream_wdls, repo_dir, out_file, 
+         task_name = 'export_taxon_tables',
          ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker', 'sample_taxon'},
          ignored_outputs = {'taxon_table_status'}, remote = False):
     """Main function:
@@ -453,8 +448,7 @@ def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables
     # Get inputs and outputs of focal WDL file
     task_io, wf_io = get_io(input_file, local = bool(repo_dir))
     if task_io and wf_io:
-        eprint("ERROR: this script does not support WDL files with both tasks and workflows")
-        sys.exit(2)
+        raise AttributeError("ERROR: this script does not support WDL files with both tasks and workflows")
     elif task_io:
         wdl_info = task_io
     else:
@@ -463,7 +457,7 @@ def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables
     # Compile the inputs for the focal WDL file
     input_inputs = {x.name: str(x.type) for x in wdl_info['inputs'][task_name]}
 
-    eprint('Downstream dependencies:')
+    logger.info('Downstream dependencies:')
     if not remote:
         # Collect all WDL files in local repo and ID dependencies
         wdls_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
@@ -476,8 +470,7 @@ def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables
                                                                   downstream_wdls)
         
     if not downstream_io:
-        eprint("No downstream dependencies found")
-        sys.exit(3)
+        raise FileNotFoundError("No downstream dependencies found")
 
     # Compile the downstream I/O for easier parsing
     wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type \
@@ -487,12 +480,14 @@ def main(input_file, downstream_wdls, repo_dir, task_name = 'export_taxon_tables
     doc_files = identify_documentation(downstream_wdls, repo_dir,
                                        doc_dir = 'docs/workflows/genomic_characterization/')
 
-    # Print the new inputs for the focal WDL file
-    print_changes(input_file, input_inputs, wdl2out_hash, 
-                  wdl2namespace, task_name, preexisting_inputs,
-                  ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files)
-
+    # Write the new inputs for the focal WDL file
+    with open(out_file, 'w') as out_obj:
+        output_changes(input_file, input_inputs, wdl2out_hash, 
+                      wdl2namespace, task_name, preexisting_inputs,
+                      ignored_inputs, ignored_outputs, 
+                      wdl2in_hash, wdl2in2type, wdl2out2type, doc_files,
+                      file_obj = out_obj)
+    
 def cli():
     base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
     parser = argparse.ArgumentParser(description = "Sync task_broad_terra_tools.wdl inputs/outputs " \
@@ -514,19 +509,18 @@ def cli():
         source_task = f'{repo_uri}{rel_source_task}'
         dependencies = [f'{repo_uri}{x}' for x in rel_dependencies]
     elif not args.input or not args.repo:
-        eprint('ERROR: -i and -r are required together')
-        sys.exit(13)
+        raise AttributeError('ERROR: -i and -r are required together')
     else:
         remote = False
         source_task = format_path(args.input)
         repo_uri = format_path(args.repo)
         # Check if repo is a git repo for local run
         if not check_repo_head(repo_uri):
-            eprint("ERROR: Repo directory is not a git repository")
-            sys.exit(1)
+            raise FileNotFoundError("ERROR: Repo directory is not a git repository")
         dependencies = []
 
-    main(source_task, dependencies, repo_uri, remote = remote)
+    out_file = format_path(os.getcwd() + '/update_taxon_tables_io.out')
+    main(source_task, dependencies, repo_uri, out_file, remote = remote)
 
 if __name__ == '__main__':
     cli()
