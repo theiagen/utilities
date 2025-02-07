@@ -26,7 +26,7 @@ from io import StringIO
 from collections import defaultdict
 
 logging.basicConfig(level = logging.DEBUG,
-                    format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format = '%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def set_wdl_paths():
@@ -519,7 +519,7 @@ def cli():
             raise FileNotFoundError("ERROR: Repo directory is not a git repository")
         dependencies = []
 
-    out_file = format_path(os.getcwd() + '/update_taxon_tables_io.out')
+    out_file = format_path(os.getcwd() + '/update_taxon_tables_io.txt')
     main(source_task, dependencies, repo_uri, out_file, remote = remote)
 
 if __name__ == '__main__':
