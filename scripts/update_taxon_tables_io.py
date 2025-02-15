@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def set_wdl_paths():
     """Set dependency paths relative to remote repo"""
-    source = 'tasks/utilities/data_export/task_broad_terra_tools.wdl'
+    source = 'tasks/utilities/data_export/task_export_taxon_table.wdl'
     dependencies = ['workflows/theiaprok/wf_theiaprok_fasta.wdl',
                     'workflows/theiaprok/wf_theiaprok_illumina_pe.wdl',
                     'workflows/theiaprok/wf_theiaprok_illumina_se.wdl',
@@ -84,11 +84,9 @@ def expand_env_var(path):
 
 def format_path(path, force_dir = False):
     """Convert all path types to absolute path with explicit directory ending"""
-
     if path:
         path = os.path.expanduser(path)
         path = expand_env_var(path)
-    
         if force_dir:
             if not path.endswith('/'):
                 path += '/'
@@ -101,11 +99,9 @@ def format_path(path, force_dir = False):
                     path += '/'
             if not path.startswith('/'):
                 path = os.getcwd() + '/' + path
-
         path = path.replace('/./', '/')
         while '/../' in path:
             path = re.sub(r'[^/]+/\.\./(.*)', r'\1', path)
-    
     return path
 
 def check_repo_head(repo_dir):
@@ -147,8 +143,8 @@ def get_io(wdl_file, local = False):
     return task_info, wf_info
 
 def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
-    """Obtain the inputs of a task in a WDL file using REGEX"""
-
+    """Obtain the inputs of a task in a WDL file w/o WDL library.
+    WDL must abide by Theiagen PHB code contribution guidelines"""
     # Read the WDL file
     if local:
         with open(wdl_file, 'r') as raw:
@@ -156,18 +152,47 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     else:
         wdl_data = remote_load(wdl_file)
 
-    # prepare a compiled regex to find the task and its inputs
-    re_comp = re.compile(r'call\W+' + f'{namespace}\.{task}' + r'\W+{' \
-                       + r'\s+input:\s+([^}]+)', re.DOTALL)
-    matches = re_comp.findall(wdl_data)
-
+    # prepare a compiled regex to find the task and its inputs,
+    call_comp = re.compile(r'call\W+' + f'{namespace}\.{task}')
+    # prepare parsing variables
+    parse_block = False
+    parse_input = False
+    nested_brackets = 0
+    closed_brackets = 0
+    matches = []
+    for line in wdl_data.split('\n'):
+        if not parse_block:
+            if call_comp.search(line) is not None:
+                parse_block = True
+                nested_brackets += 1
+        if parse_block:
+            # capture the data for the task call
+            # identify when input parsing begins
+            if not parse_input:
+                # DOES NOT account for any inputs within the first input line
+                if line.find('input:') is not None:
+                    parse_input = True
+                    matches.append('')
+            else:
+                # Capture the input data
+                matches[-1] += line
+                # Account for nestedness, DOES NOT exclude brackets in strings
+                if '{' in line:
+                    nested_brackets += 1
+                if '}' in line:
+                    closed_brackets += 1
+        # identify when a call is complete while accounting for nestedness
+        if nested_brackets == closed_brackets and parse_input:
+            # Reset parsing variables
+            parse_block = False
+            parse_input = False
+            nested_brackets = 0
+            closed_brackets = 0
+                
     # Only one instance of the task should be found
-    if len(list(matches)) > 1:
+    if len(matches) > 1:
         raise AttributeError(f'ERROR: Multiple instances of {namespace}.{task} found in {wdl_file}' \
                 + ' - this script is not equipped to handle this')
-    elif '{' in matches[0]:
-        raise AttributeError('ERROR: REGEX not equipped to handle nested "{" ' \
-             + f'in {namespace}.{task} in {wdl_file}')
 
     # Parse the input variables and expressions
     namespace_inputs = {}
@@ -182,7 +207,7 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     return namespace_inputs
 
 def get_downstream_remote(foc_file, foc_info,
-                          dependencies, task = 'export_taxon_tables'):
+                          dependencies, task = 'export_taxon_table'):
     """Parse downstream dependencies of a WDL file remotely.
     Currently non-functional due to WDL.load not accepting a string"""
     preexisting = {}
@@ -202,7 +227,7 @@ def get_downstream_remote(foc_file, foc_info,
     return downstream, preexisting
 
 def get_downstream_local(foc_file, downstream_wdls, 
-                         task = 'export_taxon_tables'):
+                         task = 'export_taxon_table'):
     """Get and parse downstream dependencies of a WDL file"""
     preexisting = {}
     downstream = {}
@@ -265,9 +290,9 @@ def identify_documentation(downstream_wdls, base_dir,
     return doc_files
 
 def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2type,
-                                  task = 'export_taxon_tables'):
+                                  task = 'export_taxon_table'):
     """Compile the changes to the documentation file by extracting preexisting
-    inputs and formatting for export_taxon_tables standards"""
+    inputs and formatting for export_taxon_table standards"""
     suffix2declar = {'fasta': 'FASTA', 'illumina_pe': 'PE',
                      'illumina_se': 'SE', 'ont': 'ONT'}
     in_table = False
@@ -312,7 +337,7 @@ def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2typ
                 if len(input_tasks) > 1:
                     logger.warning(f'Multiple tasks reference for {in_} in {doc_file}: ' \
                             + f'{input_tasks}; using {input_task}')
-                # Adhere to the export_taxon_tables standard while using other task's inputs
+                # Adhere to the export_taxon_table standard while using other task's inputs
                 doc_changes += f'| {task} | **{in_}** | {task2meta[input_task][0]} | Internal component, do not modify ' \
                              + f'| | Do not modify, Optional | {task2meta[input_task][-2]} |\n'
         else:
@@ -431,7 +456,7 @@ def output_changes(input_file, input_inputs, wdl2out_hash,
 
             
 def main(input_file, downstream_wdls, repo_dir, out_file, 
-         task_name = 'export_taxon_tables',
+         task_name = 'export_taxon_table',
          ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker', 'sample_taxon'},
          ignored_outputs = {'taxon_table_status'}, remote = False):
     """Main function:
@@ -489,14 +514,14 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
     
 def cli():
     base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
-    parser = argparse.ArgumentParser(description = "Sync task_broad_terra_tools.wdl inputs/outputs " \
+    parser = argparse.ArgumentParser(description = "Sync task_export_taxon_table.wdl inputs/outputs " \
                                      + "with downstream dependencies.")
 #    parser.add_argument("-b", "--branch", default = 'main', 
  #                       help = 'Remote git branch for remote runs; DEFAULT: "main"')
   #  parser.add_argument("-u", "--url", help = f'Remote git URL; DEFAULT: {base_repo_url}',
    #                     default = base_repo_url)
     parser.add_argument("-i", "--input", required = True,
-                        help = '[-r] Local task_broad_terra_tools.wdl; Requires -r')
+                        help = '[-r] Local task_export_taxon_table.wdl; Requires -r')
     parser.add_argument("-r", "--repo", required = True,
                         help = "[-i] Local git repo dir for local runs; Requires -i")
     args = parser.parse_args()
