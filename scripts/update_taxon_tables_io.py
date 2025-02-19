@@ -46,6 +46,40 @@ def remote_load(url):
     wdl_text = response.text
     return wdl_text
 
+def expand_env_var(path):
+    """Expands environment variables by regex substitution"""
+    # identify all environment variables in the path
+    envs = re.findall(r'\$[^/]+', path)
+    # replace the environment variables with their values
+    for env in envs:
+        path = path.replace(env, os.environ[env.replace('$','')])
+    return path.replace('//','/')
+
+def format_path(path):
+    """Convert all path types to absolute path with explicit directory ending"""
+    if path:
+        # expand username
+        path = os.path.expanduser(path)
+        # expand environment variables
+        path = expand_env_var(path)
+        # only save the directory ending if it is a directory
+        if path.endswith('/'):
+            if not os.path.isdir(path):
+                path = path[:-1]
+        # add the directory ending if it is a directory
+        else:
+            if os.path.isdir(path):
+                path += '/'
+        # make the path absolute
+        if not path.startswith('/'):
+            path = os.getcwd() + '/' + path
+        # replace redundancies
+        path = path.replace('/./', '/')
+        # trace back to the root directory
+        while '/../' in path:
+            path = re.sub(r'[^/]+/\.\./(.*)', r'\1', path)
+    return path
+
 def collect_files(directory = './', filetype = '*', recursive = False):
     """
     Inputs: directory path, file extension (no "."), recursivity bool
@@ -55,54 +89,20 @@ def collect_files(directory = './', filetype = '*', recursive = False):
     version of the input directory. Glob to obtain the filelist for each 
     filetype based on whether or not it is recursive.
     """
-
     if type(filetype) == list:
         filetypes = filetype.split()
     else:
         filetypes = [filetype]
-
     directory = format_path(directory)
     filelist = []
     for filetype in filetypes:
         if recursive:
             filelist.extend(glob.glob(directory + "/**/*." + filetype, 
-                                      recursive = recursive))
+                                      recursive = True))
         else:
             filelist.extend(glob.glob(directory + "/*." + filetype, 
-                                      recursive = recursive))
-
+                                      recursive = False))
     return filelist
-
-def expand_env_var(path):
-    """Expands environment variables by regex substitution"""
-
-    envs = re.findall(r'\$[^/]+', path)
-    for env in envs:
-        path = path.replace(env, os.environ[env.replace('$','')])
-
-    return path.replace('//','/')
-
-def format_path(path, force_dir = False):
-    """Convert all path types to absolute path with explicit directory ending"""
-    if path:
-        path = os.path.expanduser(path)
-        path = expand_env_var(path)
-        if force_dir:
-            if not path.endswith('/'):
-                path += '/'
-        else:
-            if path.endswith('/'):
-                if not os.path.isdir(path):
-                    path = path[:-1]
-            else:
-                if os.path.isdir(path):
-                    path += '/'
-            if not path.startswith('/'):
-                path = os.getcwd() + '/' + path
-        path = path.replace('/./', '/')
-        while '/../' in path:
-            path = re.sub(r'[^/]+/\.\./(.*)', r'\1', path)
-    return path
 
 def check_repo_head(repo_dir):
     """Check if repo directory is a git repo"""
@@ -160,6 +160,7 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     nested_brackets = 0
     closed_brackets = 0
     matches = []
+    # parse the WDL file line by line to identify the task call and its inputs
     for line in wdl_data.split('\n'):
         if not parse_block:
             if call_comp.search(line) is not None:
@@ -198,12 +199,13 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
     namespace_inputs = {}
     for input_ in matches[0]:
         inp_data = input_.strip().split('=')
+        # obtain the nonmapped inputs
         if len(inp_data) == 2:
             inp_name = inp_data[0].strip()
             inp_expr = inp_data[1].strip().replace(',', '')
             namespace_inputs[inp_name] = inp_expr
+        # obtain the mapped inputs
         else:
-            # check if parsing a mapping
             map_data = input_.strip().split(':')
             if len(map_data) == 2:
                 map_name = map_data[0].strip().replace('"', '').replace("'", '')
@@ -212,12 +214,12 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
 
     return namespace_inputs
 
-def get_downstream_remote(foc_file, foc_info,
-                          dependencies, task = 'export_taxon_table'):
+def get_downstream_remote(dependencies, task = 'export_taxon_table'):
     """Parse downstream dependencies of a WDL file remotely.
     Currently non-functional due to WDL.load not accepting a string"""
     preexisting = {}
     downstream = {}
+    # extract the IO of downstream WDL files
     for wdl_file in dependencies:
         wdl_txt = remote_load(wdl_file)
         wdl = WDL.load(StringIO(wdl_txt))
@@ -238,6 +240,7 @@ def get_downstream_local(foc_file, downstream_wdls,
     preexisting = {}
     downstream = {}
 
+    # extract the IO of downstream WDL files
     for wdl_file in downstream_wdls:
         wdl = WDL.load(wdl_file)
         wdl_dir = os.path.dirname(wdl_file)
@@ -292,8 +295,7 @@ def output_changes(wdl2out_hash,
                   nonmapped_inputs, ignored_inputs, ignored_outputs, 
                   wdl2in_hash, wdl2in2type, wdl2out2type, mapping_name,
                   file_obj = sys.stdout):
-    """Output calls to input task's input changes, the input task's I/O changes, and
-    documentation updates to input changes"""
+    """Output input task's calls input changes"""
 
     # Identify and write inputs from the workflow that do not correspond
     # Collect the types for each variable name to check and refer to later
@@ -331,16 +333,19 @@ def output_changes(wdl2out_hash,
         # Write the proposed changes to the file
         file_obj.write(f'!! {wdl_file}\n')
         if missing_inputs:
+            # Write nonmapped changes
             if missing_nonmapped:
                 file_obj.write(f'\t!! Add directly to {namespace}.{task_name} call:\n')
                 for missing_var in sorted(missing_nonmapped):
                     missing_expr = outputs2expr[missing_var]
                     file_obj.write(f'{missing_var} = {missing_expr},\n')
+            # Write mapped changes
             if missing_mappings:
                 file_obj.write(f'\t!! Add to {mapping_name} mapping in {namespace}.{task_name} call:\n')
                 for missing_var in sorted(missing_mappings):
                     missing_expr = outputs2expr[missing_var]
                     file_obj.write(f'{missing_var}: {missing_expr},\n')
+        # Write removals as simply their variable names
         if extra_inputs:
             file_obj.write(f'\n\t!! Remove from {namespace}.{task_name} call:\n')
             for extra_var in sorted(extra_inputs):
@@ -400,8 +405,8 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
                                                                  wdl_files)
         downstream_wdls = sorted(downstream_io.keys())
     else:
-        downstream_io, preexisting_inputs = get_downstream_remote(input_file, wdl_info,
-                                                                  downstream_wdls)
+        # Remotely collect downstream dependencies
+        downstream_io, preexisting_inputs = get_downstream_remote(downstream_wdls)
         
     if not downstream_io:
         raise FileNotFoundError("No downstream dependencies found")
