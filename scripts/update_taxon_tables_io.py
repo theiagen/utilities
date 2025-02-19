@@ -419,7 +419,7 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
                       mapping_name, file_obj = out_obj)
     
 def cli():
-    base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
+  #  base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
     parser = argparse.ArgumentParser(description = "Sync task_export_taxon_table.wdl inputs/outputs " \
                                      + "with downstream dependencies.")
 #    parser.add_argument("-b", "--branch", default = 'main', 
