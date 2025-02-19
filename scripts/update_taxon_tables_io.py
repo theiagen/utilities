@@ -281,87 +281,10 @@ def compile_downstream_io(io_dict):
 
     return wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type
 
-def identify_documentation(downstream_wdls, base_dir,
-                           doc_dir = 'docs/workflows/genomic_characterization/'):
-    """Identify documentation files that need to be updated.
-    Assumes only Theia- documentation will be affected"""
-    downstream_wdl_dirs = sorted(set(os.path.basename(os.path.dirname(x)) for x in downstream_wdls))
-    doc_files = [f'{base_dir}{doc_dir}{x}.md' for x in downstream_wdl_dirs]
-    return doc_files
-
-def compile_documentation_changes(doc_file, accepted_inputs, input2files, in2type,
-                                  task = 'export_taxon_table'):
-    """Compile the changes to the documentation file by extracting preexisting
-    inputs and formatting for export_taxon_table standards"""
-    suffix2declar = {'fasta': 'FASTA', 'illumina_pe': 'PE',
-                     'illumina_se': 'SE', 'ont': 'ONT'}
-    in_table = False
-    input2meta = defaultdict(dict)
-    with open(doc_file, 'r') as doc:
-        for line in doc:
-            if in_table:
-                # tables must not have empty lines between
-                if not line.startswith('|'):
-                    in_table = False
-                    break
-                data = line.strip().split('|')
-                if len(data) != 9:
-                    raise AttribbuteError('ERROR: Table in documentation file is not formatted correctly ' \
-                        + f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
-                # Extract the variable names and types from the table
-                table_task_name = data[1].strip()
-                table_input_name = data[2].strip().replace('**', '')
-                input2meta[table_input_name][table_task_name] = [x.strip() for x in data[3:]]
-            elif line.lower().startswith('| **terra task name** |'):
-                in_table = True
-                data = line.strip().split('|')
-                if len(data) != 9:
-                    raise AttributeError('ERROR: Table in documentation file is not formatted correctly ' \
-                        + f'Expected 9 columns, found {len(data)} in {doc_file} line {line}')
-    
-    # Compile the changes to the documentation file
-    doc_changes = ''
-    for in_ in sorted(accepted_inputs):
-        # Prefer to populate with preexisting documentation as reference
-        if in_ in input2meta:
-            task2meta = input2meta[in_]
-            # Only populate with inputs that match {task}
-            # Preferentially use a preexisting entry for the {task}
-            if task in task2meta:
-            # Otherwise we need to reference another task's input
-                doc_changes += f'| {task} | **{in_}** | {task2meta[task][0]} | {task2meta[task][1]} ' \
-                            + f' | {task2meta[task][2]} | {task2meta[task][3]} | {task2meta[task][4]} |\n'
-            else:
-                input_tasks = sorted(task2meta.keys())
-                input_task = input_tasks[0]
-                if len(input_tasks) > 1:
-                    logger.warning(f'Multiple tasks reference for {in_} in {doc_file}: ' \
-                            + f'{input_tasks}; using {input_task}')
-                # Adhere to the export_taxon_table standard while using other task's inputs
-                doc_changes += f'| {task} | **{in_}** | {task2meta[input_task][0]} | Internal component, do not modify ' \
-                             + f'| | Do not modify, Optional | {task2meta[input_task][-2]} |\n'
-        else:
-            # Determine what workflows the input is used in
-            seq_techs = []
-            files_basenames = [os.path.basename(x) for x in input2files[in_]]
-            for file_ in files_basenames:
-                for suffix, declar in suffix2declar.items():
-                    if suffix in file_:
-                        seq_techs.append(declar)
-                        break
-            seq_techs.sort()
-            # Will fail here if the input is not found in any workflows, or prior documentation,
-            # which is the case for inputs that are unique to the focal WDL file, such as sample_taxon
-            doc_changes += f'| {task} | **{in_}** | {in2type[in_]} | Internal component, do not modify ' \
-                        + f'| | Do not modify, Optional | {", ".join(seq_techs)} |\n'
-
-    # convert double spaces generated from blank {task} entries
-    return doc_changes.replace('  ', ' ')
-
-def output_changes(input_file, input_inputs, wdl2out_hash, 
+def output_changes(wdl2out_hash, 
                   wdl2namespace, task_name, preexisting,
                   ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type, doc_files,
+                  wdl2in_hash, wdl2in2type, wdl2out2type,
                   file_obj = sys.stdout):
     """Output calls to input task's input changes, the input task's I/O changes, and
     documentation updates to input changes"""
@@ -423,36 +346,6 @@ def output_changes(input_file, input_inputs, wdl2out_hash,
         for failed_var in failed_vars:
             logger.error(f'{failed_var} {task_in2type_set[failed_var]}')
         raise ValueError
-    task_in2type = {k: list(v)[0] for k, v in task_in2type_set.items()}
-
-    # Report the discrepancies for the input task
-    file_obj.write(f'{input_file}\n')
-    needed_inputs = set(task_in2type.keys()).difference(set(input_inputs.keys()))
-    file_obj.write('\t!! Add to inputs:\n')
-    for in_var in sorted(needed_inputs):
-        # all types are assumed to be optional
-        file_obj.write(f'{task_in2type[in_var]}? {in_var}\n')
-
-    # Report the extraneous inputs for the input task
-    extra_inputs_prep = set(input_inputs.keys()).difference(set(task_in2type.keys()))
-    extra_inputs = extra_inputs_prep.difference(ignored_inputs)
-    file_obj.write('\n\t!! Remove from inputs:\n')
-    for inp in sorted(extra_inputs):
-        file_obj.write(f'{inp}\n')
-
-    file_obj.write('\n\t!! Replace "new_table" with this:\n')
-    file_obj.write('    new_table = {\n')
-    file_obj.write('      "entity:${sample_table}_id": "~{samplename}"')
-    for in_var in sorted(task_in2type.keys()):
-        file_obj.write(f',\n      "{in_var}": ' + '"~{' + f'{in_var}' + '}"')
-    file_obj.write('\n    }\n\n')
-
-    for doc_file in doc_files:
-        doc_changes = compile_documentation_changes(doc_file, actual_inputs, 
-                                                    input2files, task_in2type)
-        file_obj.write(f'{doc_file}\n')
-        file_obj.write(f'\t!! Change {doc_file} {task_name} inputs table with:\n')
-        file_obj.write(f'{doc_changes}\n')
 
             
 def main(input_file, downstream_wdls, repo_dir, out_file, 
@@ -478,10 +371,7 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
     else:
         wdl_info = wf_io
 
-    # Compile the inputs for the focal WDL file
-    input_inputs = {x.name: str(x.type) for x in wdl_info['inputs'][task_name]}
-
-    logger.info('Downstream dependencies:')
+    logger.info('Identifying downstream dependencies:')
     if not remote:
         # Collect all WDL files in local repo and ID dependencies
         wdls_prep = set(collect_files(repo_dir, 'wdl', recursive = True))
@@ -500,16 +390,12 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
     wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type \
         = compile_downstream_io(downstream_io)
 
-    # Compile documentation basenames for updates
-    doc_files = identify_documentation(downstream_wdls, repo_dir,
-                                       doc_dir = 'docs/workflows/genomic_characterization/')
-
     # Write the new inputs for the focal WDL file
     with open(out_file, 'w') as out_obj:
-        output_changes(input_file, input_inputs, wdl2out_hash, 
+        output_changes(wdl2out_hash, 
                       wdl2namespace, task_name, preexisting_inputs,
                       ignored_inputs, ignored_outputs, 
-                      wdl2in_hash, wdl2in2type, wdl2out2type, doc_files,
+                      wdl2in_hash, wdl2in2type, wdl2out2type,
                       file_obj = out_obj)
     
 def cli():
