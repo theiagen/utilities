@@ -170,12 +170,12 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
             # identify when input parsing begins
             if not parse_input:
                 # DOES NOT account for any inputs within the first input line
-                if line.find('input:') is not None:
+                if 'input:' in line:
                     parse_input = True
-                    matches.append('')
+                    matches.append([])
             else:
                 # Capture the input data
-                matches[-1] += line
+                matches[-1].append(line)
                 # Account for nestedness, DOES NOT exclude brackets in strings
                 if '{' in line:
                     nested_brackets += 1
@@ -196,13 +196,19 @@ def obtain_namespace_inputs(wdl_file, namespace, task, local = False):
 
     # Parse the input variables and expressions
     namespace_inputs = {}
-    input_list = matches[0].split('\n')
-    for input in input_list:
-        inp_data = input.strip().split('=')
+    for input_ in matches[0]:
+        inp_data = input_.strip().split('=')
         if len(inp_data) == 2:
             inp_name = inp_data[0].strip()
             inp_expr = inp_data[1].strip().replace(',', '')
             namespace_inputs[inp_name] = inp_expr
+        else:
+            # check if parsing a mapping
+            map_data = input_.strip().split(':')
+            if len(map_data) == 2:
+                map_name = map_data[0].strip().replace('"', '').replace("'", '')
+                map_expr = map_data[1].strip().replace(',', '')
+                namespace_inputs[map_name] = map_expr
 
     return namespace_inputs
 
@@ -281,10 +287,10 @@ def compile_downstream_io(io_dict):
 
     return wdl2out_hash, wdl2namespace, wdl2in_hash, wdl2in2type, wdl2out2type
 
-def output_changes(wdl2out_hash, 
+def output_changes(wdl2out_hash,
                   wdl2namespace, task_name, preexisting,
-                  ignored_inputs, ignored_outputs, 
-                  wdl2in_hash, wdl2in2type, wdl2out2type,
+                  nonmapped_inputs, ignored_inputs, ignored_outputs, 
+                  wdl2in_hash, wdl2in2type, wdl2out2type, mapping_name,
                   file_obj = sys.stdout):
     """Output calls to input task's input changes, the input task's I/O changes, and
     documentation updates to input changes"""
@@ -296,15 +302,13 @@ def output_changes(wdl2out_hash,
     input2files = defaultdict(list)
     for wdl_file, task_dict in wdl2out_hash.items():
         namespace = wdl2namespace[wdl_file]
-        file_obj.write(f'!! {wdl_file}\n')
-        file_obj.write(f'\t!! Add to {namespace}.{task_name} call:\n')
         outputs2expr, inputs2expr = {}, {}
         # Compile the variable names and expressions for the outputs and inputs
-        for task0, outputs in task_dict.items():
+        for outputs in task_dict.values():
             for out_name, out_var in outputs:
                 outputs2expr[out_name] = out_var
                 input2files[out_name].append(wdl_file)
-        for task0, inputs in wdl2in_hash[wdl_file].items():
+        for inputs in wdl2in_hash[wdl_file].values():
             for in_name, in_var in inputs:
                 inputs2expr[in_name] = in_var
                 input2files[in_name].append(wdl_file)
@@ -312,23 +316,35 @@ def output_changes(wdl2out_hash,
         # The workflow's inputs and outputs are the only acceptable inputs to the task
         acceptable_inputs_prep = set(inputs2expr.keys()).union(set(outputs2expr.keys()))
         # Add special exceptions
-        acceptable_inputs = acceptable_inputs_prep.union(ignored_inputs)
+        acceptable_inputs = acceptable_inputs_prep.union(ignored_inputs).union(nonmapped_inputs)
         # Extraneous task inputs are preexisting inputs that aren't acceptable
         extra_inputs = set(preexisting[wdl_file]).difference(acceptable_inputs)
         # Only unexposed outputs are flagged for adding
         missing_inputs_prep = set(outputs2expr.keys()).difference(set(preexisting[wdl_file]))
         missing_inputs = missing_inputs_prep.difference(ignored_outputs)
+        missing_mappings = missing_inputs.difference(nonmapped_inputs)
+        missing_nonmapped = missing_inputs.intersection(nonmapped_inputs)
         # Identify the total inputs for populating the task file itself later
         accepted_preexisting = set(preexisting[wdl_file]).intersection(acceptable_inputs)
         actual_inputs = accepted_preexisting.union(missing_inputs)
 
-        for missing_var in sorted(missing_inputs):
-            missing_expr = outputs2expr[missing_var]
-            file_obj.write(f'{missing_var} = {missing_expr},\n')
-        file_obj.write(f'\n\t!! Remove from {namespace}.{task_name} call:\n')
-        for extra_var in sorted(extra_inputs):
-            extra_expr = preexisting[wdl_file][extra_var]
-            file_obj.write(f'{extra_var} = {extra_expr}\n')
+        # Write the proposed changes to the file
+        file_obj.write(f'!! {wdl_file}\n')
+        if missing_inputs:
+            if missing_nonmapped:
+                file_obj.write(f'\t!! Add directly to {namespace}.{task_name} call:\n')
+                for missing_var in sorted(missing_nonmapped):
+                    missing_expr = outputs2expr[missing_var]
+                    file_obj.write(f'{missing_var} = {missing_expr},\n')
+            if missing_mappings:
+                file_obj.write(f'\t!! Add to {mapping_name} mapping in {namespace}.{task_name} call:\n')
+                for missing_var in sorted(missing_mappings):
+                    missing_expr = outputs2expr[missing_var]
+                    file_obj.write(f'{missing_var}: {missing_expr},\n')
+        if extra_inputs:
+            file_obj.write(f'\n\t!! Remove from {namespace}.{task_name} call:\n')
+            for extra_var in sorted(extra_inputs):
+                file_obj.write(f'{extra_var}\n')
 
         # Crude check to obtain the type for populating the task's input 
         for in_var in list(actual_inputs):
@@ -346,12 +362,16 @@ def output_changes(wdl2out_hash,
         for failed_var in failed_vars:
             logger.error(f'{failed_var} {task_in2type_set[failed_var]}')
         raise ValueError
-
             
 def main(input_file, downstream_wdls, repo_dir, out_file, 
          task_name = 'export_taxon_table',
-         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker', 'sample_taxon'},
-         ignored_outputs = {'taxon_table_status'}, remote = False):
+         ignored_inputs = {'cpu', 'memory', 'disk_size', 'docker'},
+         ignored_outputs = {'taxon_table_status'}, 
+         nonmapped_inputs = {'terra_project', 'terra_workspace', 
+                             'gambit_predicted_taxon', 'columns_to_export',
+                             'taxon_table', 'samplename'},
+         mapping_name = 'columns_to_export',
+         remote = False):
     """Main function:
     Compile inputs from input_file
     ID downstream dependencies
@@ -394,9 +414,9 @@ def main(input_file, downstream_wdls, repo_dir, out_file,
     with open(out_file, 'w') as out_obj:
         output_changes(wdl2out_hash, 
                       wdl2namespace, task_name, preexisting_inputs,
-                      ignored_inputs, ignored_outputs, 
+                      nonmapped_inputs, ignored_inputs, ignored_outputs, 
                       wdl2in_hash, wdl2in2type, wdl2out2type,
-                      file_obj = out_obj)
+                      mapping_name, file_obj = out_obj)
     
 def cli():
     base_repo_url = f'https://raw.githubusercontent.com/theiagen/public_health_bioinformatics/'
@@ -413,11 +433,12 @@ def cli():
     args = parser.parse_args()
 
     if not args.input and not args.repo:
-        remote = True
+        raise AttributeError('ERROR: remote run is not implemented, use -i and -r for local')
+       # remote = True
         #   repo_uri = args.url + args.branch + '/'
-        rel_source_task, rel_dependencies = set_wdl_paths()
-        source_task = f'{repo_uri}{rel_source_task}'
-        dependencies = [f'{repo_uri}{x}' for x in rel_dependencies]
+    #    rel_source_task, rel_dependencies = set_wdl_paths()
+     #   source_task = f'{repo_uri}{rel_source_task}'
+      #  dependencies = [f'{repo_uri}{x}' for x in rel_dependencies]
     elif not args.input or not args.repo:
         raise AttributeError('ERROR: -i and -r are required together')
     else:
@@ -429,7 +450,7 @@ def cli():
             raise FileNotFoundError("ERROR: Repo directory is not a git repository")
         dependencies = []
 
-    out_file = format_path(os.getcwd() + '/update_taxon_tables_io.txt')
+    out_file = format_path('./update_taxon_tables_io.txt')
     main(source_task, dependencies, repo_uri, out_file, remote = remote)
 
 if __name__ == '__main__':
