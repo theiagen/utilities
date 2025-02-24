@@ -129,3 +129,21 @@ A shell script that checks nextclade dataset versions in the `wf_organism_parame
 ```
 
 Now check the nextclade_versions.csv to see what nextclade tags need to be udpated. 
+
+
+### update_taxon_tables_io.py
+
+This python script synchronizes `task_export_taxon_table.wdl` I/O and its downstream dependencies' I/O. It will then report in `$PWD/update_taxon_tables_io.out` which additions and removals need to be made to task calls in downstream workflow dependencies. It currently operates locally, identifying downstream dependencies dynamically, though the scaffold is designed for remote operation and updating files in place using hard-coded dependency links following minor changes.
+
+NOTE: The WDL library will fail to parse dependencies if it cannot link I/O between workflows and task. If no updates are necessary then nothing will be printed for the dependency files.
+
+#### requirements
+Two inputs required:
+ - Local Git repo (PHB) directory
+ - `task_export_taxon_table.wdl` within the repo
+MiniWDL is a required package
+
+#### usage
+```bash
+$ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl>
+```
