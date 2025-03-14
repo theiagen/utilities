@@ -154,16 +154,21 @@ def parse_and_extract(fa_path, output_dir):
 
 def build_skani_db(fa_dir, out_dir, threads = 8):
     """Build the SKANI database"""
-    skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)], 
-                                 shell = True)
+    skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)])
+#                                 shell = True)
     return skani_exit
 
 def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
     """Build the Metabuli database"""
+    fas = [format_path(f) for f in os.listdir(fa_dir) if f.endswith('.fna')]
+    fas += [format_path(human_fna)]
+    fas = sorted(set(fas))
+    with open(fa_dir + 'reference.txt', 'w') as out:
+        out.write('\n'.join(fas))
     metabuli_exit = subprocess.call(['metabuli', 'build', '--gtdb', '1', out_dir, 
                                      human_fna, fa_dir + '*fna', 
-                                     taxdump_path + 'taxid.map', '--taxonomy-path', taxdump_path], 
-                                    shell = True)
+                                     taxdump_path + 'taxid.map', '--taxonomy-path', taxdump_path])
+#                                    shell = True)
     return metabuli_exit
 
 def push_to_gs_bucket(gs_bucket, file_path):
