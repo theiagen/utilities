@@ -188,6 +188,7 @@ def rm_files(out_dir):
 def main():
     # hard-coded URLs
     # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
+    # Building the de novo metabuli DB requires tying RefSeq accessions to GCF accessions, then taxids through gtdb-taxdump
 #    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
     refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
  #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
