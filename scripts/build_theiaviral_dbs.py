@@ -81,7 +81,7 @@ def download_file(url, out_path, max_attempts = 3):
 def decompress_tarchive(tar_path, out_dir):
     """Decompress a tar archive"""
     subprocess.call(['tar', '-xzf', tar_path, '-C', out_dir])
-    return tar_path.replace('.tar.gz', '')
+    return format_path(tar_path.replace('.tar.gz', ''))
 
 def compress_tarchive(dir_path, tar_path):
     """Compress a directory into a tar archive"""
@@ -165,9 +165,10 @@ def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
     fas = sorted(set(fas))
     with open(fa_dir + 'reference.txt', 'w') as out:
         out.write('\n'.join(fas))
-    metabuli_exit = subprocess.call(['metabuli', 'build', '--gtdb', '1', out_dir, 
-                                     human_fna, fa_dir + '*fna', 
-                                     taxdump_path + 'taxid.map', '--taxonomy-path', taxdump_path])
+    metabuli_exit = subprocess.call(['metabuli', 'build', out_dir, 
+                                     fa_dir + 'reference.txt', 
+                                     taxdump_path + 'taxid.map', 
+                                     '--gtdb', '1', '--taxonomy-path', taxdump_path])
 #                                    shell = True)
     return metabuli_exit
 
@@ -186,13 +187,14 @@ def rm_files(out_dir):
 
 def main():
     # hard-coded URLs
-    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
+    # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
+#    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
     refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
-    human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
+ #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = 'gs://theiagen-large-public-files-rp/terra/databases/'
 
-    usage = 'Download complete RefSeq viral genomes and build SKANI and Metabuli databases.\n' + \
-            'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
+    usage = 'Download complete RefSeq viral genomes and build SKANI database'
+            #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
     # extract the arguments and require at least 1 input
     if {'-h', '--help', '-help'}.intersection(set(sys.argv)):
         print(usage)
@@ -201,14 +203,8 @@ def main():
     # build an output directory
     out_dir = mk_output_dir(os.getcwd(), 'unpack_refseq')
 
-    # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
-    logger.info('Downloading GTDB taxdump')
-    taxdump_path = out_dir + 'gtdb-taxdump.tar.gz'
-    download_file(taxdump_url, taxdump_path)
-    taxdump_dir = decompress_tarchive(taxdump_path, out_dir)
-
     # download latest refseq release
-    logger.info('Downloading RefSeq viral genomes')
+    logger.info('Downloading latest RefSeq release viral genomes')
     refseq_fna = download_refseq(out_dir, refseq_url)
 
     # parse and extract the RefSeq genomes
@@ -223,20 +219,29 @@ def main():
     skani_dir = mk_output_dir(out_dir, 'skani_db')
     build_skani_db(fna_dir, skani_dir, threads = 8)
     skani_base = os.path.basename(skani_dir)
-    
-    logger.info('Downloading human genome')
-    human_fna = download_human_genome(out_dir, human_url)
-    logger.info('Building Metabuli database')
+
+    # download prebuilt metabuli DB
+    # REMOVE if updating to automated build
     metabuli_dir = mk_output_dir(out_dir, 'metabuli_db')
-    build_metabuli_db(fna_dir, taxdump_path, human_fna, metabuli_dir)
-    metabuli_base = os.path.basename(metabuli_dir)
+    metabuli_tar = metabuli_dir + 'refseq_virus.tar.gz'
+    download_file(metabuli_db_url, metabuli_db_path)
+#  logger.info('Downloading human genome')
+ #   human_fna = download_human_genome(out_dir, human_url)
+    # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
+#    logger.info('Downloading GTDB taxdump')
+ #   taxdump_path = out_dir + 'gtdb-taxdump.tar.gz'
+  #  download_file(taxdump_url, taxdump_path)
+   # taxdump_dir = decompress_tarchive(taxdump_path, out_dir)
+  #  logger.info('Building Metabuli database')
+    #build_metabuli_db(fna_dir, taxdump_dir, human_fna, metabuli_dir)
+    #metabuli_base = os.path.basename(metabuli_dir)
 
     # compress the databases and push to gs buckets
     logger.info('Compressing and pushing databases to Google Storage')
     os.chdir(out_dir)
     skani_tar = compress_tarchive(skani_base, skani_base + '.tar.gz')
     push_to_gs_bucket(gsbucket_url + os.path.basename(skani_tar), skani_tar)    
-    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
+#    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
     push_to_gs_bucket(gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar)
 
     logger.info('Cleaning up')
