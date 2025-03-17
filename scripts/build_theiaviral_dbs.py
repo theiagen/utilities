@@ -195,6 +195,7 @@ def main():
     refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
  #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = 'gs://theiagen-large-public-files-rp/terra/databases/'
+    metabuli_db_url = 'https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz'
 
     usage = 'Download complete RefSeq viral genomes and build SKANI database'
             #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
