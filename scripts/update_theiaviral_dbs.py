@@ -48,7 +48,7 @@ def format_path(path):
             path = re.sub(r'[^/]+/\.\./(.*)', r'\1', path)
     return path
 
-def mk_output_dir(base_dir, program, reuse = True, 
+def mk_output_dir(base_dir, program, mkdir = True, 
              suffix = datetime.now().strftime('%Y%m%d')):
     """Create an output directory for outputs using the date as a suffix"""
     if not base_dir:
@@ -57,8 +57,9 @@ def mk_output_dir(base_dir, program, reuse = True,
         raise FileNotFoundError(base_dir + ' does not exist')
     out_dir = format_path(base_dir) + program + '_' + suffix
 
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
+    if mkdir:
+        if not os.path.isdir(out_dir):
+            os.mkdir(out_dir)
     return out_dir + '/'
 
 def download_file(url, out_path, max_attempts = 3):
@@ -154,6 +155,9 @@ def parse_and_extract(fa_path, output_dir):
 
 def build_skani_db(fa_dir, out_dir, threads = 8):
     """Build the SKANI database"""
+    # skani requires the output directory to not exist
+    if os.path.isdir(out_dir):
+        shutil.rmtree(out_dir)
     try:
         skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)])
     except FileNotFoundError:
@@ -220,7 +224,7 @@ def main():
 
     # build the SKANI and Metabuli databases
     logger.info('Building SKANI database')
-    skani_dir = mk_output_dir(out_dir, 'skani_db')
+    skani_dir = mk_output_dir(out_dir, 'skani_db', mkdir = False)
     build_skani_db(fna_dir, skani_dir, threads = 8)
     skani_base = os.path.basename(skani_dir)
 
