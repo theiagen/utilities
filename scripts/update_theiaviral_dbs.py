@@ -154,8 +154,10 @@ def parse_and_extract(fa_path, output_dir):
 
 def build_skani_db(fa_dir, out_dir, threads = 8):
     """Build the SKANI database"""
-    skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)])
-#                                 shell = True)
+    try:
+        skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)])
+    except FileNotFoundError:
+        raise FileNotFoundError('SKANI may not be installed') 
     return skani_exit
 
 def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
@@ -193,6 +195,7 @@ def main():
     refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
  #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = 'gs://theiagen-large-public-files-rp/terra/databases/'
+    metabuli_db_url = 'https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz'
 
     usage = 'Download complete RefSeq viral genomes and build SKANI database'
             #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
