@@ -228,7 +228,7 @@ def main():
     # REMOVE if updating to automated build
     metabuli_dir = mk_output_dir(out_dir, 'metabuli_db')
     metabuli_tar = metabuli_dir + 'refseq_virus.tar.gz'
-    download_file(metabuli_db_url, metabuli_db_path)
+    download_file(metabuli_db_url, metabuli_tar)
 #  logger.info('Downloading human genome')
  #   human_fna = download_human_genome(out_dir, human_url)
     # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
