@@ -202,7 +202,7 @@ def main():
         sys.exit(0)
 
     # build an output directory
-    out_dir = mk_output_dir(os.getcwd(), 'unpack_refseq')
+    out_dir = mk_output_dir(os.getcwd(), 'update_theiaviral_dbs')
 
     # download latest refseq release
     logger.info('Downloading latest RefSeq release viral genomes')
