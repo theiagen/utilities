@@ -151,10 +151,7 @@ $ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tool
 
 ### update_theiaviral_dbs.py
 
-
-TheiaViral uses Metabuli for read classification and Skani for dynamic reference genome selection. To ensure TheiaViral is referencing the most recent viral nucleotide databases, this script will automatically build database for Skani referencing the most recent nucleotide viral release. Due to challenges with TaxID mapping, MetabuliDB is pulled from the prebuilt source and the function for building a de novo Metabuli DB is partially complete and commented out; completion of this implementation will require linking viral genome accessions to RefSeq GCF accessions and linking these through the gtdb_taxdump.tar.gz release.
-
-This script builds the viral genome databases for Skani from the latest viral nucleotide data (excluding SARS-CoV2) and uploads to GS Cloud automatically. Skani's databases are built using the high throughput sketching methodology. Databases are compressed as gzipped archives before pushing and output directory is cleaned up upon completion. Will require updating Skani database references to upload date in TheiaViral scripts. If DB naming scheme changes for metabuli, that will require updating as well, potentially including the release URL.
+TheiaViral uses Metabuli for read classification and Skani for dynamic reference genome selection. This script builds the viral genome databases for Skani from the latest viral nucleotide data (excluding SARS-CoV2) and uploads to GS Cloud automatically. Skani's databases are compressed using their high throughput sketching methodology. This will upload a date tagged Skani database and replace the preexisting Metabuli compressed database and will require updating Skani database references to upload date in TheiaViral scripts.
 
 #### requirements
 - ncbi-datasets
