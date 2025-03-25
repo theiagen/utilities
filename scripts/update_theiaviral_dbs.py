@@ -93,7 +93,7 @@ def decompress_tarchive(tar_path, out_dir):
 
 def compress_tarchive(dir_path, tar_path):
     """Compress a directory into a tar archive"""
-    shutil.make_archive(tar_path, 'gztar', root_dir = dir_path, base_dir = dir_path)
+    shutil.make_archive(tar_path, 'gztar')
     return tar_path
 
 def download_viral_genomes(viral_accs_path, out_dir):
