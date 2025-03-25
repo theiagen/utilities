@@ -129,12 +129,16 @@ def dict2fa(fasta_dict, description = True):
         fasta_string += fasta_dict[gene]['sequence'].rstrip() + '\n'
     return fasta_string
 
-def output_fa(fa_dict, out_dir, seq_name):
+def output_fa(fa_dict, out_dir, seq_name, description = False):
     """Output a FASTA dictionary to a file"""
     out_path = f'{out_dir}{seq_name}.fna'
-    with open(out_path, 'w') as out:
-        out.write(dict2fa({seq_name: {'sequence': fa_dict['sequence'], 
-                                      'description': fa_dict['description']}}))
+    if description:
+        with open(out_path, 'w') as out:
+            out.write(dict2fa({seq_name: {'sequence': fa_dict['sequence'], 
+                                          'description': fa_dict['description']}}))
+    else:
+        with open(out_path, 'w') as out:
+            out.write(dict2fa({seq_name: {'sequence': fa_dict['sequence'], 'description': ''}}))
 
 def multifas2fas(fa_path, out_dir):
     """Convert a FASTA string to a dictionary"""
@@ -221,7 +225,10 @@ def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
 
 def push_to_gs_bucket(gs_bucket, file_path):
     """Push a file to a Google Storage bucket"""
-    gs_exit = subprocess.call(['gsutil', 'cp', file_path, gs_bucket], shell = True)
+    if os.path.isdir(file_path):
+        gs_exit = subprocess.call(['gsutil', '-m', 'cp', '-r', file_path, gs_bucket], shell = True)
+    else:
+        gs_exit = subprocess.call(['gsutil', '-m', 'cp', file_path, gs_bucket], shell = True)
     return gs_exit
 
 def rm_files(out_dir):
@@ -304,10 +311,19 @@ def main():
     # compress the databases and push to gs buckets
     logger.info('Compressing and pushing databases to Google Storage')
     os.chdir(out_dir)
-    skani_tar = compress_tarchive(skani_base, skani_base)
-    push_to_gs_bucket(gsbucket_url + os.path.basename(skani_tar), skani_tar)    
+#    skani_tar = compress_tarchive(skani_base, skani_base)
+    # not worth compressing because skani is already compressing
+    gs_exit = push_to_gs_bucket(gsbucket_url + skani_base, skani_dir)
+    if gs_exit:
+        logger.error('Failed to push SKANI database to Google Storage')
+        logger.error(f'Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}{skani_base}`')
+        raise Exception('Failed to push SKANI database to Google Storage')
 #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
-    push_to_gs_bucket(gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar)
+    gs_exit = push_to_gs_bucket(gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar)
+    if gs_exit:
+        logger.error('Failed to push Metabuli database to Google Storage')
+        logger.error(f'Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}{os.path.basename(metabuli_tar)}`')
+        raise Exception('Failed to push Metabuli database to Google Storage')
 
     logger.info('Cleaning up')
     rm_files(out_dir)
