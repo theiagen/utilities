@@ -141,7 +141,7 @@ NOTE: The WDL library will fail to parse dependencies if it cannot link I/O betw
 Two inputs required:
  - Local Git repo (PHB) directory
  - `task_export_taxon_table.wdl` within the repo
-MiniWDL is a required package
+ - MiniWDL is a required package
 
 #### usage
 ```bash

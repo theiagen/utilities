@@ -100,31 +100,21 @@ def download_viral_genomes(viral_accs_path, out_dir):
     """Calls NCBI datasets to download viral genomes"""
     precd_dir = os.getcwd()
     os.chdir(out_dir)
-    datasets_cmd = ['datasets', 'download', 'virus', 'genome', 'accession', '--complete-only',
-                    '--inputfile', viral_accs_path]
-    datasets_exit = subprocess.call(datasets_cmd)
+    if not os.path.isfile('ncbi_dataset.zip') and not os.path.isdir('ncbi_dataset'):
+        datasets_cmd = ['datasets', 'download', 'virus', 'genome', 'accession', '--complete-only',
+                        '--inputfile', viral_accs_path]
+        datasets_exit = subprocess.call(datasets_cmd)
+    else:
+        logger.info('NCBI datasets already downloaded')
     os.chdir(precd_dir)
     return out_dir + 'ncbi_dataset.zip'
 
 def unzip_datasets(out_dir, datasets_zip):
     """Extracts genomes from datasets download"""
-    with zipfile.ZipFile(datasets_zip, 'r') as zip_ref:
-        zip_ref.extractall(out_dir)
+    if not os.path.isdir(out_dir + 'ncbi_dataset/'):
+        with zipfile.ZipFile(datasets_zip, 'r') as zip_ref:
+            zip_ref.extractall(out_dir)
     return f'{out_dir}ncbi_dataset/data/genomic.fna'
-
-def fa2dict_str(fasta_input):
-    """Convert a FASTA string to a dictionary"""
-    fasta_dict = {}
-    for line in fasta_input.split('\n'):
-        data = line.rstrip()
-        if data.startswith('>'):
-            header = data[1:].split(' ')
-            seq_name = header[0]
-            fasta_dict[seq_name] = {'sequence': '', 
-                                     'description': ' '.join(header[1:])}
-        elif not data.startswith('#'):
-            fasta_dict[seq_name]['sequence'] += data
-    return fasta_dict
 
 def dict2fa(fasta_dict, description = True):
     """Convert a dictionary to a FASTA string"""
@@ -139,18 +129,35 @@ def dict2fa(fasta_dict, description = True):
         fasta_string += fasta_dict[gene]['sequence'].rstrip() + '\n'
     return fasta_string
 
-def parse_and_extract(fa_path, output_dir):
-    """Import the FASTA and extract individual sequences"""
-    # read the FASTA and decompress if necessary
-    with open(fa_path, 'r') as raw:
-        fa_dict = fa2dict_str(raw.read())
+def output_fa(fa_dict, out_dir, seq_name):
+    """Output a FASTA dictionary to a file"""
+    out_path = f'{out_dir}{seq_name}.fna'
+    with open(out_path, 'w') as out:
+        out.write(dict2fa({seq_name: {'sequence': fa_dict['sequence'], 
+                                      'description': fa_dict['description']}}))
 
-    # extract the sequences
-    for key, value in fa_dict.items():
-        # write the sequence to a file
-        out_path = os.path.join(output_dir, key + '.fna')
-        with open(out_path, 'w') as out:
-            out.write(dict2fa({key: value}))
+def multifas2fas(fa_path, out_dir):
+    """Convert a FASTA string to a dictionary"""
+    fa_dict = {'sequence': '', 'description': ''}
+    with open(fa_path, 'r') as fasta_input:
+        for line in fasta_input:
+            data = line.rstrip()
+            if data.startswith('>'):
+                # output previous entry
+                if fa_dict['sequence']:
+                    output_fa(fa_dict, out_dir, seq_name)
+                # start a new entry
+                header = data[1:].split(' ')
+                seq_name = header[0]
+                fa_dict = {'sequence': '', 
+                           'description': ' '.join(header[1:])}
+            elif not data.startswith('#'):
+                fa_dict['sequence'] += data
+    # output the last entry
+    if fa_dict['sequence']:
+        output_fa(fa_dict, out_dir, seq_name)
+    return fa_dict
+
 
 def download_human_genome(out_dir, url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'):
     """Download the human genome for Metabuli"""
@@ -175,12 +182,19 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                         out.write(row[0] + '\n')
     return viral_accs_path
 
-def build_skani_db(fa_dir, db_dir, out_dir, threads = 8):
+def output_list_fastas(fna_dir, out_path):
+    """Output a list of FASTA files"""
+    with open(out_path, 'w') as out:
+        for fna in os.listdir(fna_dir):
+            if fna.endswith('.fna'):
+                out.write(format_path(fna_dir + fna) + '\n')
+
+def build_skani_db(fa_list, db_dir, threads = 8):
     """Build the SKANI database"""
     # skani requires the output directory to not exist
     if os.path.isdir(db_dir):
         shutil.rmtree(db_dir)
-    skani_cmd = ['skani', 'sketch', f'{fa_dir}*fna', '-o',
+    skani_cmd = ['skani', 'sketch', '-l', fa_list, '-o',
                  db_dir, '-t', str(threads), '-m', '50', '-c', '20']
 #    skani_file = out_dir + 'build_skani_db.sh'
  #   with open(skani_file, 'w') as out:
@@ -228,15 +242,18 @@ def main():
     gsbucket_url = 'gs://theiagen-large-public-files-rp/terra/databases/'
     metabuli_db_url = 'https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz'
 
-    usage = 'Download complete RefSeq viral genomes and build SKANI database'
+    usage = 'Download complete RefSeq viral genomes and build SKANI database\n' \
+          + 'Usage: update_theiaviral_dbs.py [output_dir]\n'
             #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
     # extract the arguments and require at least 1 input
     if {'-h', '--help', '-help'}.intersection(set(sys.argv)):
         print(usage)
         sys.exit(0)
-
-    # build an output directory
-    out_dir = mk_output_dir(os.getcwd(), 'update_theiaviral_dbs')
+    elif len(sys.argv) > 1:
+        out_dir = format_path(sys.argv[1])
+    else:
+        # build an output directory
+        out_dir = mk_output_dir(os.getcwd(), 'update_theiaviral_dbs')
 
     # download latest viral metadata
     logger.info('Downloading latest viral nucleotide metadata')
@@ -253,13 +270,20 @@ def main():
     fna_dir = out_dir + 'fna/'
     if not os.path.isdir(fna_dir):
         os.mkdir(fna_dir)
-    parse_and_extract(viral_fna, fna_dir)
+    logger.info('Extracting viral genomes from multifasta')
+    multifas2fas(viral_fna, fna_dir)
+    fa_list = f'{out_dir}fna_list.txt'
+    output_list_fastas(fna_dir, fa_list)
+
 
     # build the SKANI and Metabuli databases
     logger.info('Building SKANI database')
     skani_dir = mk_output_dir(out_dir, 'skani_db', mkdir = False)
-    build_skani_db(fna_dir, skani_dir, out_dir, threads = 8)
-    skani_base = os.path.basename(skani_dir)
+    # can't exist prior to building db
+    if os.path.isdir(skani_dir):
+        shutil.rmtree(skani_dir)
+    build_skani_db(fa_list, skani_dir, threads = 8)
+    skani_base = os.path.basename(skani_dir[:-1])
 
     # download prebuilt metabuli DB
     # REMOVE if updating to automated build
