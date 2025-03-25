@@ -304,7 +304,7 @@ def main():
     # compress the databases and push to gs buckets
     logger.info('Compressing and pushing databases to Google Storage')
     os.chdir(out_dir)
-    skani_tar = compress_tarchive(skani_base, skani_base + '.tar.gz')
+    skani_tar = compress_tarchive(skani_base, skani_base)
     push_to_gs_bucket(gsbucket_url + os.path.basename(skani_tar), skani_tar)    
 #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
     push_to_gs_bucket(gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar)
