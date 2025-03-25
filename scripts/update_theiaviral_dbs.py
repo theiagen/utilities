@@ -2,10 +2,12 @@
 
 import os
 import re
+import csv
 import sys
 import gzip
 import shutil
 import logging
+import zipfile
 import requests
 import subprocess
 from datetime import datetime
@@ -62,16 +64,21 @@ def mk_output_dir(base_dir, program, mkdir = True,
             os.mkdir(out_dir)
     return out_dir + '/'
 
-def download_file(url, out_path, max_attempts = 3):
+def download_file(url, out_path, max_attempts = 3, force = False):
     """Download a file from a URL"""
+    # skip if the file exists
+    if os.path.isfile(out_path) and not force:
+        logger.info(f'{out_path} already exists')
+        return
     # attempt to download the file
     for attempt in range(max_attempts):
         try:
             # download the file
             response = requests.get(url)
             response.raise_for_status()
-            with open(out_path, 'wb') as out:
+            with open(out_path + '.tmp', 'wb') as out:
                 out.write(response.content)
+            os.rename(out_path + '.tmp', out_path)
             break
         except requests.exceptions.RequestException as e:
             logger.error(f'Failed to download {url} on attempt {attempt + 1}')
@@ -89,29 +96,21 @@ def compress_tarchive(dir_path, tar_path):
     shutil.make_archive(tar_path, 'gztar', root_dir = dir_path, base_dir = dir_path)
     return tar_path
 
-def download_human_genome(out_dir, url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'):
-    """Download the human genome for Metabuli"""
-    download_file(url, out_dir + 'T2T-CHM13v2.0.fna.gz')
-    with gzip.open(out_dir + 'T2T-CHM13v2.0.fna.gz', 'rt') as raw:
-        with open(out_dir + 'T2T-CHM13v2.0.fna', 'w') as out:
-            for line in raw:
-                out.write(line)
-    return out_dir + 'T2T-CHM13v2.0.fna'
+def download_viral_genomes(viral_accs_path, out_dir):
+    """Calls NCBI datasets to download viral genomes"""
+    precd_dir = os.getcwd()
+    os.chdir(out_dir)
+    datasets_cmd = ['datasets', 'download', 'virus', 'genome', 'accession', '--complete-only',
+                    '--inputfile', viral_accs_path]
+    datasets_exit = subprocess.call(datasets_cmd)
+    os.chdir(precd_dir)
+    return out_dir + 'ncbi_dataset.zip'
 
-def download_refseq(out_dir, refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'):
-    """Download the latest RefSeq viral release by parsing the FTP dir"""
-    index_path = os.path.join(out_dir, 'index.html')
-    download_file(refseq_url, index_path)
-    # identify the fna from the FTP index
-    with open(index_path, 'r') as raw:
-        for line in raw:
-            if 'genomic.fna.gz' in line:
-                fna_url = re.search('href="(.+?)"', line).group(1)
-                break
-    fna_path = os.path.join(out_dir, os.path.basename(fna_url))
-    # download the refseq viral fna
-    download_file(refseq_url + fna_url, fna_path)
-    return fna_path
+def unzip_datasets(out_dir, datasets_zip):
+    """Extracts genomes from datasets download"""
+    with zipfile.ZipFile(datasets_zip, 'r') as zip_ref:
+        zip_ref.extractall(out_dir)
+    return f'{out_dir}ncbi_dataset/data/genomic.fna'
 
 def fa2dict_str(fasta_input):
     """Convert a FASTA string to a dictionary"""
@@ -143,7 +142,7 @@ def dict2fa(fasta_dict, description = True):
 def parse_and_extract(fa_path, output_dir):
     """Import the FASTA and extract individual sequences"""
     # read the FASTA and decompress if necessary
-    with gzip.open(fa_path, 'rt') as raw:
+    with open(fa_path, 'r') as raw:
         fa_dict = fa2dict_str(raw.read())
 
     # extract the sequences
@@ -153,13 +152,41 @@ def parse_and_extract(fa_path, output_dir):
         with open(out_path, 'w') as out:
             out.write(dict2fa({key: value}))
 
-def build_skani_db(fa_dir, out_dir, threads = 8):
+def download_human_genome(out_dir, url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'):
+    """Download the human genome for Metabuli"""
+    download_file(url, out_dir + 'T2T-CHM13v2.0.fna.gz')
+    with gzip.open(out_dir + 'T2T-CHM13v2.0.fna.gz', 'rt') as raw:
+        with open(out_dir + 'T2T-CHM13v2.0.fna', 'w') as out:
+            for line in raw:
+                out.write(line)
+    return out_dir + 'T2T-CHM13v2.0.fna'
+
+def parse_viral_metadata(viral_metadata_path, out_dir):
+    """Parse the viral metadata and extract the complete accessions"""
+    viral_accs_path = f'{out_dir}viral_accessions.txt'
+    with open(viral_accs_path, 'w') as out:
+        with gzip.open(viral_metadata_path, 'rt') as raw:
+            reader = csv.reader(raw)
+            next(reader)
+            for row in reader:
+                # skip SARS-Cov-2
+                if row[6] != 'Severe acute respiratory syndrome-related coronavirus':
+                    if row[12] == 'complete':
+                        out.write(row[0] + '\n')
+    return viral_accs_path
+
+def build_skani_db(fa_dir, db_dir, out_dir, threads = 8):
     """Build the SKANI database"""
     # skani requires the output directory to not exist
-    if os.path.isdir(out_dir):
-        shutil.rmtree(out_dir)
+    if os.path.isdir(db_dir):
+        shutil.rmtree(db_dir)
+    skani_cmd = ['skani', 'sketch', f'{fa_dir}*fna', '-o',
+                 db_dir, '-t', str(threads), '-m', '50', '-c', '20']
+#    skani_file = out_dir + 'build_skani_db.sh'
+ #   with open(skani_file, 'w') as out:
+  #      out.write(skani_cmd)
     try:
-        skani_exit = subprocess.call(['skani', 'sketch', '*fna', '-o', out_dir, '-t', str(threads)])
+        skani_exit = subprocess.call(skani_cmd)
     except FileNotFoundError:
         raise FileNotFoundError('SKANI may not be installed') 
     return skani_exit
@@ -196,7 +223,7 @@ def main():
     # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
     # Building the de novo metabuli DB requires tying RefSeq accessions to GCF accessions, then taxids through gtdb-taxdump
 #    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
-    refseq_url = 'https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/'
+    nucleotide_viral_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz'
  #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = 'gs://theiagen-large-public-files-rp/terra/databases/'
     metabuli_db_url = 'https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz'
@@ -211,21 +238,27 @@ def main():
     # build an output directory
     out_dir = mk_output_dir(os.getcwd(), 'update_theiaviral_dbs')
 
-    # download latest refseq release
-    logger.info('Downloading latest RefSeq release viral genomes')
-    refseq_fna = download_refseq(out_dir, refseq_url)
+    # download latest viral metadata
+    logger.info('Downloading latest viral nucleotide metadata')
+    viral_metadata_path = out_dir + 'AllNuclMetadata.csv.gz'
+    download_file(nucleotide_viral_url, viral_metadata_path)
 
-    # parse and extract the RefSeq genomes
-    logger.info('Extracting RefSeq viral genomes')
-    fna_dir = out_dir + 'extracted/'
+    # parse the metadata and extract the complete non-SARS viral accessions
+    logger.info('Parsing viral metadata')
+    viral_accs_path = parse_viral_metadata(viral_metadata_path, out_dir)
+
+    # downloading the viral genomes
+    datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
+    viral_fna = unzip_datasets(out_dir, datasets_zip)
+    fna_dir = out_dir + 'fna/'
     if not os.path.isdir(fna_dir):
         os.mkdir(fna_dir)
-    parse_and_extract(refseq_fna, fna_dir)
+    parse_and_extract(viral_fna, fna_dir)
 
     # build the SKANI and Metabuli databases
     logger.info('Building SKANI database')
     skani_dir = mk_output_dir(out_dir, 'skani_db', mkdir = False)
-    build_skani_db(fna_dir, skani_dir, threads = 8)
+    build_skani_db(fna_dir, skani_dir, out_dir, threads = 8)
     skani_base = os.path.basename(skani_dir)
 
     # download prebuilt metabuli DB
