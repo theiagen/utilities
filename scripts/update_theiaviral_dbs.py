@@ -287,13 +287,9 @@ def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
 def push_to_gs_bucket(gs_bucket, file_path):
     """Push a file to a Google Storage bucket"""
     if os.path.isdir(file_path):
-        gs_exit = subprocess.call(
-            ["gsutil", "-m", "cp", "-r", file_path, gs_bucket], shell=True
-        )
+        gs_exit = subprocess.call(["gsutil", "-m", "cp", "-r", file_path, gs_bucket])
     else:
-        gs_exit = subprocess.call(
-            ["gsutil", "-m", "cp", file_path, gs_bucket], shell=True
-        )
+        gs_exit = subprocess.call(["gsutil", "-m", "cp", file_path, gs_bucket])
     return gs_exit
 
 
