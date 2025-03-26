@@ -408,21 +408,20 @@ def main():
     if not args.checkv_skip:
         # download the CheckV database
         checkv_dir = mk_output_dir(out_dir, "checkv_db")
-        checkv_tar = checkv_dir + "checkv.tar.gz"
-        download_file(
-            "https://data.ace.uq.edu.au/public/CheckV/checkv_db_v0.6.tar.gz", checkv_tar
-        )
+        subprocess.call(['checkv', 'download_database', checkv_dir])
         checkv_base = os.path.basename(checkv_dir)
+        logger.info("Compressing CheckV DB into tarchive")
+        checkv_tar = compress_tarchive(checkv_base)
         logger.info("Pushing CheckV DB to Google Storage")
         gs_exit = push_to_gs_bucket(
-            gsbucket_url + checkv_base + ".tar.gz", checkv_tar
+            gsbucket_url + checkv_base + ".tar", checkv_tar
         )
         if gs_exit:
             logger.error("Failed to push CheckV database to Google Storage")
             logger.error(
                 f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
             )
-            raise Exception("Failed to push CheckV database to Google Storage")
+            raise Exception("Failed to push CheckV database to Google Storage"
 
     logger.info("Cleaning up")
     rm_files(out_dir)
