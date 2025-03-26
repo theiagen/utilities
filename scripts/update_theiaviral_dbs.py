@@ -8,6 +8,7 @@ import gzip
 import shutil
 import logging
 import zipfile
+import argparse
 import requests
 import subprocess
 from datetime import datetime
@@ -301,7 +302,6 @@ def rm_files(out_dir):
         elif os.path.isdir(path_):
             shutil.rmtree(path_)
 
-
 def main():
     # hard-coded URLs
     # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
@@ -314,86 +314,115 @@ def main():
 
     usage = (
         "Download complete RefSeq viral genomes and build SKANI database\n"
-        + "Usage: update_theiaviral_dbs.py [output_dir]\n"
     )
+    parser = argparse.ArgumentParser(description=usage)
+    parser.add_argument("-o", "--output_dir", help="Output directory")
+    parser.add_argument("-s", "--skani_skip", help="Skip SKANI database", action="store_true")
+    parser.add_argument("-m", "--metabuli_skip", help="Skip Metabuli database", action="store_true")
+    parser.add_argument("-c", "--checkv_skip", help="Skip CheckV database", action="store_true")
+    args = parser.parse_args()
+
     #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
     # extract the arguments and require at least 1 input
-    if {"-h", "--help", "-help"}.intersection(set(sys.argv)):
-        print(usage)
-        sys.exit(0)
-    elif len(sys.argv) > 1:
-        out_dir = format_path(sys.argv[1])
+    if args.output_dir:
+        out_dir = format_path(args.output_dir)
+        if not os.path.isdir(out_dir):
+            os.mkdir(out_dir)
     else:
         # build an output directory
         out_dir = mk_output_dir(os.getcwd(), "update_theiaviral_dbs")
 
     # download latest viral metadata
-    logger.info("Downloading latest viral nucleotide metadata")
-    viral_metadata_path = out_dir + "AllNuclMetadata.csv.gz"
-    download_file(nucleotide_viral_url, viral_metadata_path)
+    if not args.skani_skip:
+        logger.info("Downloading latest viral nucleotide metadata")
+        viral_metadata_path = out_dir + "AllNuclMetadata.csv.gz"
+        download_file(nucleotide_viral_url, viral_metadata_path)
 
-    # parse the metadata and extract the complete non-SARS viral accessions
-    logger.info("Parsing viral metadata")
-    viral_accs_path = parse_viral_metadata(viral_metadata_path, out_dir)
+        # parse the metadata and extract the complete non-SARS viral accessions
+        logger.info("Parsing viral metadata")
+        viral_accs_path = parse_viral_metadata(viral_metadata_path, out_dir)
 
-    # downloading the viral genomes
-    datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
-    viral_fna = unzip_datasets(out_dir, datasets_zip)
-    fna_dir = out_dir + "fna/"
-    if not os.path.isdir(fna_dir):
-        os.mkdir(fna_dir)
-    logger.info("Extracting viral genomes from multifasta")
-    multifas2fas(viral_fna, fna_dir)
-    fa_list = f"{out_dir}fna_list.txt"
-    output_list_fastas(fna_dir, fa_list)
+        # downloading the viral genomes
+        datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
+        viral_fna = unzip_datasets(out_dir, datasets_zip)
+        fna_dir = out_dir + "fna/"
+        if not os.path.isdir(fna_dir):
+            os.mkdir(fna_dir)
+        logger.info("Extracting viral genomes from multifasta")
+        multifas2fas(viral_fna, fna_dir)
+        fa_list = f"{out_dir}fna_list.txt"
+        output_list_fastas(fna_dir, fa_list)
 
     # build the SKANI and Metabuli databases
-    logger.info("Building SKANI database")
-    skani_dir = mk_output_dir(out_dir, "skani_db", mkdir=False)
+        logger.info("Building SKANI database")
+        skani_dir = mk_output_dir(out_dir, "skani_db", mkdir=False)
     # can't exist prior to building db
-    if os.path.isdir(skani_dir):
-        shutil.rmtree(skani_dir)
-    build_skani_db(fa_list, skani_dir, threads=8)
-    skani_base = os.path.basename(skani_dir[:-1])
+        if os.path.isdir(skani_dir):
+            shutil.rmtree(skani_dir)
+        build_skani_db(fa_list, skani_dir, threads=8)
+        skani_base = os.path.basename(skani_dir[:-1])
 
-    # download prebuilt metabuli DB
-    # REMOVE if updating to automated build
-    metabuli_dir = mk_output_dir(out_dir, "metabuli_db")
-    metabuli_tar = metabuli_dir + "refseq_virus.tar.gz"
-    download_file(metabuli_db_url, metabuli_tar)
-    #  logger.info('Downloading human genome')
-    #   human_fna = download_human_genome(out_dir, human_url)
-    # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
-    #    logger.info('Downloading GTDB taxdump')
-    #   taxdump_path = out_dir + 'gtdb-taxdump.tar.gz'
-    #  download_file(taxdump_url, taxdump_path)
-    # taxdump_dir = decompress_tarchive(taxdump_path, out_dir)
-    #  logger.info('Building Metabuli database')
-    # build_metabuli_db(fna_dir, taxdump_dir, human_fna, metabuli_dir)
-    # metabuli_base = os.path.basename(metabuli_dir)
+        os.chdir(out_dir)
+        logger.info("Compressing SkaniDB into tarchive")
+        skani_tar = compress_tarchive(skani_base)
+        # not worth compressing because skani is already compressing
+        logger.info("Pushing SkaniDB to Google Storage")
+        gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + '.tar', skani_tar)
+        if gs_exit:
+            logger.error("Failed to push SKANI database to Google Storage")
+            logger.error(
+                f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}{skani_base}`"
+            )
+            raise Exception("Failed to push SKANI database to Google Storage")
 
-    # compress the databases and push to gs buckets
-    logger.info("Compressing and pushing databases to Google Storage")
-    os.chdir(out_dir)
-    skani_tar = compress_tarchive(skani_base)
-    # not worth compressing because skani is already compressing
-    gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + '.tar', skani_tar)
-    if gs_exit:
-        logger.error("Failed to push SKANI database to Google Storage")
-        logger.error(
-            f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}{skani_base}`"
+    if not args.skip_metabuli:
+        # download prebuilt metabuli DB
+        # REMOVE if updating to automated build
+        metabuli_dir = mk_output_dir(out_dir, "metabuli_db")
+        metabuli_tar = metabuli_dir + "refseq_virus.tar.gz"
+        download_file(metabuli_db_url, metabuli_tar)
+        #  logger.info('Downloading human genome')
+        #   human_fna = download_human_genome(out_dir, human_url)
+        # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
+        #    logger.info('Downloading GTDB taxdump')
+        #   taxdump_path = out_dir + 'gtdb-taxdump.tar.gz'
+        #  download_file(taxdump_url, taxdump_path)
+        # taxdump_dir = decompress_tarchive(taxdump_path, out_dir)
+        #  logger.info('Building Metabuli database')
+        # build_metabuli_db(fna_dir, taxdump_dir, human_fna, metabuli_dir)
+        # metabuli_base = os.path.basename(metabuli_dir)
+
+        # compress the databases and push to gs buckets
+        logger.info("Pushing Metabuli DB to Google Storage")
+        #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
+        gs_exit = push_to_gs_bucket(
+            gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar
         )
-        raise Exception("Failed to push SKANI database to Google Storage")
-    #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
-    gs_exit = push_to_gs_bucket(
-        gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar
-    )
-    if gs_exit:
-        logger.error("Failed to push Metabuli database to Google Storage")
-        logger.error(
-            f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}{os.path.basename(metabuli_tar)}`"
+        if gs_exit:
+            logger.error("Failed to push Metabuli database to Google Storage")
+            logger.error(
+                f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}{os.path.basename(metabuli_tar)}`"
+            )
+            raise Exception("Failed to push Metabuli database to Google Storage")
+        
+    if not args.checkv_skip:
+        # download the CheckV database
+        checkv_dir = mk_output_dir(out_dir, "checkv_db")
+        checkv_tar = checkv_dir + "checkv.tar.gz"
+        download_file(
+            "https://data.ace.uq.edu.au/public/CheckV/checkv_db_v0.6.tar.gz", checkv_tar
         )
-        raise Exception("Failed to push Metabuli database to Google Storage")
+        checkv_base = os.path.basename(checkv_dir)
+        logger.info("Pushing CheckV DB to Google Storage")
+        gs_exit = push_to_gs_bucket(
+            gsbucket_url + checkv_base + ".tar.gz", checkv_tar
+        )
+        if gs_exit:
+            logger.error("Failed to push CheckV database to Google Storage")
+            logger.error(
+                f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
+            )
+            raise Exception("Failed to push CheckV database to Google Storage")
 
     logger.info("Cleaning up")
     rm_files(out_dir)
