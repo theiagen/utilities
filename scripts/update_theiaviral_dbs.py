@@ -99,10 +99,10 @@ def decompress_tarchive(tar_path, out_dir):
     return format_path(tar_path.replace(".tar.gz", ""))
 
 
-def compress_tarchive(dir_path, tar_path):
+def compress_tarchive(base_path, compression = 'tar', ext = '.tar'):
     """Compress a directory into a tar archive"""
-    shutil.make_archive(tar_path, "gztar")
-    return tar_path
+    shutil.make_archive(base_path, compression)
+    return base_path + ext
 
 
 def download_viral_genomes(viral_accs_path, out_dir):
@@ -375,9 +375,9 @@ def main():
     # compress the databases and push to gs buckets
     logger.info("Compressing and pushing databases to Google Storage")
     os.chdir(out_dir)
-    #    skani_tar = compress_tarchive(skani_base, skani_base)
+    skani_tar = compress_tarchive(skani_base)
     # not worth compressing because skani is already compressing
-    gs_exit = push_to_gs_bucket(gsbucket_url + skani_base, skani_dir)
+    gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + '.tar', skani_tar)
     if gs_exit:
         logger.error("Failed to push SKANI database to Google Storage")
         logger.error(
