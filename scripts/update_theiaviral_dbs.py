@@ -375,7 +375,7 @@ def main():
             )
             raise Exception("Failed to push SKANI database to Google Storage")
 
-    if not args.skip_metabuli:
+    if not args.metabuli_skip:
         # download prebuilt metabuli DB
         # REMOVE if updating to automated build
         metabuli_dir = mk_output_dir(out_dir, "metabuli_db")
@@ -414,14 +414,14 @@ def main():
         checkv_tar = compress_tarchive(checkv_base)
         logger.info("Pushing CheckV DB to Google Storage")
         gs_exit = push_to_gs_bucket(
-            gsbucket_url + checkv_base + ".tar", checkv_tar
+            f"{gsbucket_url}checkv/{checkv_base}.tar", checkv_tar
         )
         if gs_exit:
             logger.error("Failed to push CheckV database to Google Storage")
             logger.error(
                 f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
             )
-            raise Exception("Failed to push CheckV database to Google Storage"
+            raise Exception("Failed to push CheckV database to Google Storage")
 
     logger.info("Cleaning up")
     rm_files(out_dir)
