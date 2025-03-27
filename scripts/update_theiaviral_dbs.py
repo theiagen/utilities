@@ -100,7 +100,7 @@ def decompress_tarchive(tar_path, out_dir):
     return format_path(tar_path.replace(".tar.gz", ""))
 
 
-def compress_tarchive(base_path, compression = 'tar', ext = '.tar'):
+def compress_tarchive(base_path, compression="tar", ext=".tar"):
     """Compress a directory into a tar archive"""
     shutil.make_archive(base_path, compression)
     return base_path + ext
@@ -302,6 +302,7 @@ def rm_files(out_dir):
         elif os.path.isdir(path_):
             shutil.rmtree(path_)
 
+
 def main():
     # hard-coded URLs
     # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
@@ -312,14 +313,18 @@ def main():
     gsbucket_url = "gs://theiagen-large-public-files-rp/terra/databases/"
     metabuli_db_url = "https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz"
 
-    usage = (
-        "Download complete RefSeq viral genomes and build SKANI database\n"
-    )
+    usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("-o", "--output_dir", help="Output directory")
-    parser.add_argument("-s", "--skani_skip", help="Skip SKANI database", action="store_true")
-    parser.add_argument("-m", "--metabuli_skip", help="Skip Metabuli database", action="store_true")
-    parser.add_argument("-c", "--checkv_skip", help="Skip CheckV database", action="store_true")
+    parser.add_argument(
+        "-s", "--skani_skip", help="Skip SKANI database", action="store_true"
+    )
+    parser.add_argument(
+        "-m", "--metabuli_skip", help="Skip Metabuli database", action="store_true"
+    )
+    parser.add_argument(
+        "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
+    )
     args = parser.parse_args()
 
     #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
@@ -353,10 +358,10 @@ def main():
         fa_list = f"{out_dir}fna_list.txt"
         output_list_fastas(fna_dir, fa_list)
 
-    # build the SKANI and Metabuli databases
+        # build the SKANI and Metabuli databases
         logger.info("Building SKANI database")
         skani_dir = mk_output_dir(out_dir, "skani_db", mkdir=False)
-    # can't exist prior to building db
+        # can't exist prior to building db
         if os.path.isdir(skani_dir):
             shutil.rmtree(skani_dir)
         build_skani_db(fa_list, skani_dir, threads=8)
@@ -367,7 +372,7 @@ def main():
         skani_tar = compress_tarchive(skani_base)
         # not worth compressing because skani is already compressing
         logger.info("Pushing SkaniDB to Google Storage")
-        gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + '.tar', skani_tar)
+        gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + ".tar", skani_tar)
         if gs_exit:
             logger.error("Failed to push SKANI database to Google Storage")
             logger.error(
@@ -404,11 +409,11 @@ def main():
                 f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}{os.path.basename(metabuli_tar)}`"
             )
             raise Exception("Failed to push Metabuli database to Google Storage")
-        
+
     if not args.checkv_skip:
         # download the CheckV database
         checkv_dir = mk_output_dir(out_dir, "checkv_db")
-        subprocess.call(['checkv', 'download_database', checkv_dir])
+        subprocess.call(["checkv", "download_database", checkv_dir])
         checkv_base = os.path.basename(checkv_dir)
         logger.info("Compressing CheckV DB into tarchive")
         checkv_tar = compress_tarchive(checkv_base)
@@ -416,6 +421,7 @@ def main():
         gs_exit = push_to_gs_bucket(
             f"{gsbucket_url}checkv/{checkv_base}.tar", checkv_tar
         )
+        # check if the push was successful
         if gs_exit:
             logger.error("Failed to push CheckV database to Google Storage")
             logger.error(
