@@ -416,10 +416,10 @@ def main():
         subprocess.call(["checkv", "download_database", checkv_dir])
         checkv_base = os.path.basename(checkv_dir)
         logger.info("Compressing CheckV DB into tarchive")
-        checkv_tar = compress_tarchive(checkv_base)
+        checkv_tar = compress_tarchive(checkv_base, compression="gztar", ext=".tar.gz")
         logger.info("Pushing CheckV DB to Google Storage")
         gs_exit = push_to_gs_bucket(
-            f"{gsbucket_url}checkv/{checkv_base}.tar", checkv_tar
+            f"{gsbucket_url}checkv/{checkv_base}.tar.gz", checkv_tar
         )
         # check if the push was successful
         if gs_exit:
