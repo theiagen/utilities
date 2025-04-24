@@ -325,9 +325,9 @@ def main():
     parser.add_argument(
         "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
     )
-    parser.add_argument(
-        "-k", "--kraken2_skip", help="Skip Kraken2 database", action="store_true"
-    )
+#    parser.add_argument(
+ #       "-k", "--kraken2_skip", help="Skip Kraken2 database", action="store_true"
+  #  )
     args = parser.parse_args()
 
     #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
@@ -432,7 +432,7 @@ def main():
             )
             raise Exception("Failed to push CheckV database to Google Storage")
 
-    # kraken2
+    # kraken2 implementation:
     # use skani data
     # download kraken taxonomy
     # download rodent, bat, and carnivora genomes
