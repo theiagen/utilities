@@ -310,7 +310,7 @@ def main():
     #    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
     nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
     #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
-    gsbucket_url = "gs://theiagen-large-public-files-rp/terra/databases/"
+    gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
     metabuli_db_url = "https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz"
 
     usage = "Download complete RefSeq viral genomes and build SKANI database\n"
