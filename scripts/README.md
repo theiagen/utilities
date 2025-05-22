@@ -162,21 +162,3 @@ NOTE: kraken2 is used by TheiaViral Illumina PE, but automatic updating is not i
 ```bash
 $ python update_theiaviral_dbs.py -o <OUT_DIR>
 ```
-
-### extract_nextclades.py
-
-`extract_nextclades.py` extracts the nucleotide mutations - optionally including the amino acid mutations - associated with clade metadata, and produces a Nextclade compatible `clades.tsv` for building a Nextclade dataset. This script enables swift creation of a genotyping Nextclade module. Clade metadata that is not monophyletic within the reference phylogeny is omitted. 
-
-#### requirements
-- theiaphylo (`python3 -m pip install theiaphylo`)
-
-#### usage
-```bash
-$ python extract_nextclades.py \
-  -t <AUGUR_REFINED_NWK> \
-  -m <METADATA.tsv> \
-  -c <CLADE_COL_HEADER1> <CLADE_COL_HEADER2> ... \
-  -tc <TIP_LABEL_COL> \
-  -nt <NT_MUTS.json> \
-  -aa [AA_MUTS.json]
-```
