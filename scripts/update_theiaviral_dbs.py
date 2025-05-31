@@ -5,8 +5,10 @@ import re
 import csv
 import sys
 import gzip
+import json
 import shutil
 import logging
+import tarfile
 import zipfile
 import argparse
 import requests
@@ -102,7 +104,12 @@ def decompress_tarchive(tar_path, out_dir):
 
 def compress_tarchive(base_path, compression="tar", ext=".tar"):
     """Compress a directory into a tar archive"""
-    shutil.make_archive(base_path, compression)
+    if ext == '.tar.gz':
+        file_open = "w:gz"
+    elif ext == '.tar':
+        file_open = "w"
+    with tarfile.open(base_path + ext, file_open) as tar:
+        tar.add(base_path, arcname=os.path.basename(base_path))
     return base_path + ext
 
 
@@ -177,22 +184,26 @@ def output_fa(fa_dict, out_dir, seq_name, description=False):
 def multifas2fas(fa_path, out_dir):
     """Convert a FASTA string to a dictionary"""
     fa_dict = {"sequence": "", "description": ""}
-    with open(fa_path, "r") as fasta_input:
-        for line in fasta_input:
-            data = line.rstrip()
-            if data.startswith(">"):
-                # output previous entry
-                if fa_dict["sequence"]:
-                    output_fa(fa_dict, out_dir, seq_name)
-                # start a new entry
-                header = data[1:].split(" ")
-                seq_name = header[0]
-                fa_dict = {"sequence": "", "description": " ".join(header[1:])}
-            elif not data.startswith("#"):
-                fa_dict["sequence"] += data
+    if fa_path.endswith(".gz"):
+        fasta_input = gzip.open(fa_path, "rt")
+    else:
+        fasta_input = open(fa_path, "r")
+    for line in fasta_input:
+        data = line.rstrip()
+        if data.startswith(">"):
+            # output previous entry
+            if fa_dict["sequence"]:
+                output_fa(fa_dict, out_dir, seq_name)
+            # start a new entry
+            header = data[1:].split(" ")
+            seq_name = header[0]
+            fa_dict = {"sequence": "", "description": " ".join(header[1:])}
+        elif not data.startswith("#"):
+            fa_dict["sequence"] += data
     # output the last entry
     if fa_dict["sequence"]:
         output_fa(fa_dict, out_dir, seq_name)
+    fasta_input.close()
     return fa_dict
 
 
@@ -211,17 +222,96 @@ def download_human_genome(
 
 def parse_viral_metadata(viral_metadata_path, out_dir):
     """Parse the viral metadata and extract the complete accessions"""
+    coronavirus_names = {
+        "Severe acute respiratory syndrome-related coronavirus",
+        "Betacoronavirus pandemicum"
+        }
     viral_accs_path = f"{out_dir}viral_accessions.txt"
+    count = 0
+    segmented_accs = []
     with open(viral_accs_path, "w") as out:
         with gzip.open(viral_metadata_path, "rt") as raw:
             reader = csv.reader(raw)
             next(reader)
             for row in reader:
                 # skip SARS-Cov-2
-                if row[6] != "Severe acute respiratory syndrome-related coronavirus":
+                if row[6] not in coronavirus_names:
                     if row[12] == "complete":
-                        out.write(row[0] + "\n")
-    return viral_accs_path
+                        # we don't want redundancy and refseq segment reporting may be false
+                        # we get segmented viruses from refseq later
+                        if row[11].lower() != 'refseq':
+                            # forego segments because they cannot be reliably linked
+                            if not row[14]:
+                                count += 1
+                                out.write(row[0] + "\n")
+                            else:
+                                segmented_accs.append(row[0])
+                        elif row[14]:
+                            segmented_accs.append(row[0])
+
+    logger.info(f"Found {count} compatible viral accessions")
+
+    return viral_accs_path, segmented_accs
+
+
+def compile_complete_segments(segmented_accs, fa_dir, out_dir):
+    """Identify complete segment accessions"""
+    if not os.path.isdir(f'{out_dir}segmented/'):
+        os.mkdir(f'{out_dir}segmented/')
+    segmented_accs_path = f"{out_dir}segmented/segmented_accessions.txt"
+    with open(segmented_accs_path, "w") as out:
+        out.write('\n'.join(segmented_accs) + '\n')
+    if not os.path.isdir(f'{out_dir}segmented/ncbi_dataset/'):
+        datasets_cmd = [
+            "datasets",
+            "summary",
+            "gene",
+            "accession",
+            "--as-json-lines",
+            "--report",
+            "gene",
+            "--inputfile",
+            segmented_accs_path,
+            ]
+        datasets_exit = subprocess.run(datasets_cmd, stdout = subprocess.PIPE)
+        datasets_raw = datasets_exit.stdout.decode("utf-8")
+        datasets_json = [json.loads(line) for line in datasets_raw.split('\n') if line]
+        gcfs = []
+        for hit in datasets_json:
+            if 'annotations' in hit:
+                if 'assembly_accession' in hit['annotations'][0]:
+                    gcfs.append(hit['annotations'][0]['assembly_accession'])
+        full_gcfs = sorted(set(x for x in gcfs if x.startswith(("GCF_","GCA_"))))
+        complete_segments_path = f"{out_dir}segmented/complete_segments.txt"
+        with open(complete_segments_path, "w") as out:
+            out.write('\n'.join(full_gcfs) + '\n')
+
+        # download the datasets zip file
+        logger.info("Downloading segmented genomes from NCBI datasets")
+        prev_dir = os.getcwd()
+        os.chdir(f"{out_dir}segmented/")
+        datasets_cmd = [
+            "datasets",
+            "download",
+            "genome",
+            "accession",
+            "--assembly-level",
+            "complete",
+            "--inputfile",
+            complete_segments_path
+        ]
+        datasets_exit = subprocess.call(datasets_cmd)
+        os.chdir(prev_dir)
+        datasets_zip = f"{out_dir}segmented/ncbi_dataset.zip"
+        with zipfile.ZipFile(datasets_zip, "r") as zip_ref:
+            zip_ref.extractall(f"{out_dir}segmented/")
+
+    prefix_dir = f"{out_dir}segmented/ncbi_dataset/data/"
+    acc_dirs = [prefix_dir + x for x in os.listdir(prefix_dir) if os.path.isdir(prefix_dir + x)]
+    for acc_dir in acc_dirs:
+        acc = os.path.basename(acc_dir)
+        acc_fa = prefix_dir + acc + "/" + os.listdir(acc_dir)[0]
+        shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
 
 
 def output_list_fastas(fna_dir, out_path):
@@ -312,6 +402,7 @@ def main():
     #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
     metabuli_db_url = "https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz"
+    refseq_viral_url = "https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz"
 
     usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
@@ -324,6 +415,9 @@ def main():
     )
     parser.add_argument(
         "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
+    )
+    parser.add_argument(
+        "-u", "--upload_skip", help="Skip uploading to Google Storage", action="store_true"
     )
 #    parser.add_argument(
  #       "-k", "--kraken2_skip", help="Skip Kraken2 database", action="store_true"
@@ -348,7 +442,7 @@ def main():
 
         # parse the metadata and extract the complete non-SARS viral accessions
         logger.info("Parsing viral metadata")
-        viral_accs_path = parse_viral_metadata(viral_metadata_path, out_dir)
+        viral_accs_path, segmented_accs = parse_viral_metadata(viral_metadata_path, out_dir)
 
         # downloading the viral genomes
         datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
@@ -356,8 +450,13 @@ def main():
         fna_dir = out_dir + "fna/"
         if not os.path.isdir(fna_dir):
             os.mkdir(fna_dir)
-        logger.info("Extracting viral genomes from multifasta")
+        logger.info("Downloading RefSeq viral genomes")
+        compile_complete_segments(segmented_accs, fna_dir, out_dir)
+
+
+        logger.info("Extracting NCBI viral genomes from multifasta")
         multifas2fas(viral_fna, fna_dir)
+
         fa_list = f"{out_dir}fna_list.txt"
         output_list_fastas(fna_dir, fa_list)
 
@@ -375,13 +474,14 @@ def main():
         skani_tar = compress_tarchive(skani_base)
         # not worth compressing because skani is already compressing
         logger.info("Pushing SkaniDB to Google Storage")
-        gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + ".tar", skani_tar)
-        if gs_exit:
-            logger.error("Failed to push SKANI database to Google Storage")
-            logger.error(
-                f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}{skani_base}`"
-            )
-            raise Exception("Failed to push SKANI database to Google Storage")
+        if not args.upload_skip:
+            gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + ".tar", skani_tar)
+            if gs_exit:
+                logger.error("Failed to push SKANI database to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}skani/{skani_base}`"
+                )
+                raise Exception("Failed to push SKANI database to Google Storage")
 
     if not args.metabuli_skip:
         # download prebuilt metabuli DB
@@ -403,15 +503,16 @@ def main():
         # compress the databases and push to gs buckets
         logger.info("Pushing Metabuli DB to Google Storage")
         #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
-        gs_exit = push_to_gs_bucket(
-            gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar
-        )
-        if gs_exit:
-            logger.error("Failed to push Metabuli database to Google Storage")
-            logger.error(
-                f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}{os.path.basename(metabuli_tar)}`"
+        if not args.upload_skip:
+            gs_exit = push_to_gs_bucket(
+                gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar
             )
-            raise Exception("Failed to push Metabuli database to Google Storage")
+            if gs_exit:
+                logger.error("Failed to push Metabuli database to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}metabuli/{os.path.basename(metabuli_tar)}`"
+                )
+                raise Exception("Failed to push Metabuli database to Google Storage")
 
     if not args.checkv_skip:
         # download the CheckV database
@@ -421,16 +522,17 @@ def main():
         logger.info("Compressing CheckV DB into tarchive")
         checkv_tar = compress_tarchive(checkv_base, compression="gztar", ext=".tar.gz")
         logger.info("Pushing CheckV DB to Google Storage")
-        gs_exit = push_to_gs_bucket(
-            f"{gsbucket_url}checkv/{checkv_base}.tar.gz", checkv_tar
-        )
-        # check if the push was successful
-        if gs_exit:
-            logger.error("Failed to push CheckV database to Google Storage")
-            logger.error(
-                f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
+        if not args.upload_skip:
+            gs_exit = push_to_gs_bucket(
+                f"{gsbucket_url}checkv/{checkv_base}.tar.gz", checkv_tar
             )
-            raise Exception("Failed to push CheckV database to Google Storage")
+            # check if the push was successful
+            if gs_exit:
+                logger.error("Failed to push CheckV database to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
+                )
+                raise Exception("Failed to push CheckV database to Google Storage")
 
     # kraken2 implementation:
     # use skani data
@@ -439,8 +541,9 @@ def main():
     # build kraken2 database by adding files
     # push to google buckets
 
-    logger.info("Cleaning up")
-    rm_files(out_dir)
+    if not args.upload_skip:
+        logger.info("Cleaning up")
+        rm_files(out_dir)
 
 
 if __name__ == "__main__":
