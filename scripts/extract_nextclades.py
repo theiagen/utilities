@@ -9,7 +9,7 @@ import pandas as pd
 from ete3 import Tree
 from collections import defaultdict
 from theiaphylo.lib.StdPath import Path
-from theiaphylo.theiaPhylo import *
+from theiaphylo.theiaphylo import *
 
 logging.basicConfig(
     level=logging.INFO,
