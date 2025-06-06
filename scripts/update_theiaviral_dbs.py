@@ -134,6 +134,38 @@ def download_viral_genomes(viral_accs_path, out_dir):
     os.chdir(precd_dir)
     return out_dir + "ncbi_dataset.zip"
 
+def download_genomes(accs_path, out_dir):
+    """Calls NCBI datasets to download genomes"""
+    precd_dir = os.getcwd()
+    os.chdir(out_dir)
+    if not os.path.isfile("ncbi_dataset.zip") and not os.path.isdir("ncbi_dataset"):
+        datasets_cmd = [
+            "datasets",
+            "download",
+            "genome",
+            "accession",
+            "--assembly-level",
+            "complete",
+            "--inputfile",
+            accs_path
+        ]
+        datasets_exit = subprocess.call(datasets_cmd)
+    else:
+        logger.info("NCBI datasets already downloaded")
+    os.chdir(precd_dir)
+    return out_dir + "ncbi_dataset.zip"
+
+def pull_datasets_genomes(out_dir, fa_dir):
+    """Moves genomes in independent directoiries to a fasta directory"""
+    prefix_dir = f"{out_dir}/ncbi_dataset/data/"
+    acc_dirs = [prefix_dir + x for x in os.listdir(prefix_dir) if os.path.isdir(prefix_dir + x)]
+    for acc_dir in acc_dirs:
+        acc = os.path.basename(acc_dir)
+        acc_fa = prefix_dir + acc + "/" + os.listdir(acc_dir)[0]
+        shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
+
+
+
 
 def unzip_datasets(out_dir, datasets_zip):
     """Extracts genomes from datasets download"""
@@ -207,25 +239,16 @@ def multifas2fas(fa_path, out_dir):
     return fa_dict
 
 
-def download_human_genome(
-    out_dir,
-    url="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz",
-):
-    """Download the human genome for Metabuli"""
-    download_file(url, out_dir + "T2T-CHM13v2.0.fna.gz")
-    with gzip.open(out_dir + "T2T-CHM13v2.0.fna.gz", "rt") as raw:
-        with open(out_dir + "T2T-CHM13v2.0.fna", "w") as out:
-            for line in raw:
-                out.write(line)
-    return out_dir + "T2T-CHM13v2.0.fna"
-
-
 def parse_viral_metadata(viral_metadata_path, out_dir):
     """Parse the viral metadata and extract the complete accessions"""
     coronavirus_names = {
         "Severe acute respiratory syndrome-related coronavirus",
         "Betacoronavirus pandemicum"
         }
+    segmented_families = {"orthomyxoviridae", 
+                          "hantaviridae",
+                          "arenaviridae",
+                          "phenuiviridae"}
     viral_accs_path = f"{out_dir}viral_accessions.txt"
     count = 0
     segmented_accs = []
@@ -239,7 +262,9 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                     if row[12] == "complete":
                         # we don't want redundancy and refseq segment reporting may be false
                         # we get segmented viruses from refseq later
-                        if row[11].lower() != 'refseq':
+                        if row[8].lower() in segmented_families:
+                            segmented_accs.append(row[0])
+                        elif row[11].lower() != 'refseq':
                             # forego segments because they cannot be reliably linked
                             if not row[14]:
                                 count += 1
@@ -259,6 +284,8 @@ def compile_complete_segments(segmented_accs, fa_dir, out_dir):
     if not os.path.isdir(f'{out_dir}segmented/'):
         os.mkdir(f'{out_dir}segmented/')
     segmented_accs_path = f"{out_dir}segmented/segmented_accessions.txt"
+    seg_dir = f"{out_dir}segmented/"
+
     with open(segmented_accs_path, "w") as out:
         out.write('\n'.join(segmented_accs) + '\n')
     if not os.path.isdir(f'{out_dir}segmented/ncbi_dataset/'):
@@ -288,30 +315,12 @@ def compile_complete_segments(segmented_accs, fa_dir, out_dir):
 
         # download the datasets zip file
         logger.info("Downloading segmented genomes from NCBI datasets")
-        prev_dir = os.getcwd()
-        os.chdir(f"{out_dir}segmented/")
-        datasets_cmd = [
-            "datasets",
-            "download",
-            "genome",
-            "accession",
-            "--assembly-level",
-            "complete",
-            "--inputfile",
-            complete_segments_path
-        ]
-        datasets_exit = subprocess.call(datasets_cmd)
-        os.chdir(prev_dir)
-        datasets_zip = f"{out_dir}segmented/ncbi_dataset.zip"
+        datasets_zip = download_genomes(complete_segments_path, seg_dir)
         with zipfile.ZipFile(datasets_zip, "r") as zip_ref:
             zip_ref.extractall(f"{out_dir}segmented/")
 
-    prefix_dir = f"{out_dir}segmented/ncbi_dataset/data/"
-    acc_dirs = [prefix_dir + x for x in os.listdir(prefix_dir) if os.path.isdir(prefix_dir + x)]
-    for acc_dir in acc_dirs:
-        acc = os.path.basename(acc_dir)
-        acc_fa = prefix_dir + acc + "/" + os.listdir(acc_dir)[0]
-        shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
+    # copy the FASTA files to the output directory
+    pull_datasets_genomes(seg_dir, fa_dir)
 
 
 def output_list_fastas(fna_dir, out_path):
@@ -351,30 +360,6 @@ def build_skani_db(fa_list, db_dir, threads=8):
     return skani_exit
 
 
-def build_metabuli_db(fa_dir, taxdump_path, human_fna, out_dir):
-    """Build the Metabuli database"""
-    fas = [format_path(f) for f in os.listdir(fa_dir) if f.endswith(".fna")]
-    fas += [format_path(human_fna)]
-    fas = sorted(set(fas))
-    with open(fa_dir + "reference.txt", "w") as out:
-        out.write("\n".join(fas))
-    metabuli_exit = subprocess.call(
-        [
-            "metabuli",
-            "build",
-            out_dir,
-            fa_dir + "reference.txt",
-            taxdump_path + "taxid.map",
-            "--gtdb",
-            "1",
-            "--taxonomy-path",
-            taxdump_path,
-        ]
-    )
-    #                                    shell = True)
-    return metabuli_exit
-
-
 def push_to_gs_bucket(gs_bucket, file_path):
     """Push a file to a Google Storage bucket"""
     if os.path.isdir(file_path):
@@ -395,23 +380,14 @@ def rm_files(out_dir):
 
 def main():
     # hard-coded URLs
-    # COMMENTED code for de novo metabuli DB built, currently not functional due to accession to gtdb-taxdump taxid mapping challenges
-    # Building the de novo metabuli DB requires tying RefSeq accessions to GCF accessions, then taxids through gtdb-taxdump
-    #    taxdump_url = 'https://github.com/shenwei356/gtdb-taxdump/releases/download/v0.5.0/gtdb-taxdump.tar.gz'
     nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
-    #   human_url = 'https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/914/755/GCF_009914755.1_T2T-CHM13v2.0/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna.gz'
     gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
-    metabuli_db_url = "https://metabuli.steineggerlab.workers.dev/refseq_virus.tar.gz"
-    refseq_viral_url = "https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz"
 
-    usage = "Download complete RefSeq viral genomes and build SKANI database\n"
+    usage = "Download complete RefSeq viral genomes and build SKANI and CheckV databases\n"
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("-o", "--output_dir", help="Output directory")
     parser.add_argument(
         "-s", "--skani_skip", help="Skip SKANI database", action="store_true"
-    )
-    parser.add_argument(
-        "-m", "--metabuli_skip", help="Skip Metabuli database", action="store_true"
     )
     parser.add_argument(
         "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
@@ -419,13 +395,11 @@ def main():
     parser.add_argument(
         "-u", "--upload_skip", help="Skip uploading to Google Storage", action="store_true"
     )
-#    parser.add_argument(
- #       "-k", "--kraken2_skip", help="Skip Kraken2 database", action="store_true"
-  #  )
+    parser.add_argument(
+        "-r", "--ram", type=int, default=16,
+    )
     args = parser.parse_args()
 
-    #'Uses gtdb-taxdump.tar.gz v0.5.0 needed for Metabuli'
-    # extract the arguments and require at least 1 input
     if args.output_dir:
         out_dir = format_path(args.output_dir)
         if not os.path.isdir(out_dir):
@@ -453,14 +427,13 @@ def main():
         logger.info("Downloading RefSeq viral genomes")
         compile_complete_segments(segmented_accs, fna_dir, out_dir)
 
-
         logger.info("Extracting NCBI viral genomes from multifasta")
         multifas2fas(viral_fna, fna_dir)
 
         fa_list = f"{out_dir}fna_list.txt"
         output_list_fastas(fna_dir, fa_list)
 
-        # build the SKANI and Metabuli databases
+        # build the SKANI database
         logger.info("Building SKANI database")
         skani_dir = mk_output_dir(out_dir, "skani_db", mkdir=False)
         # can't exist prior to building db
@@ -483,37 +456,6 @@ def main():
                 )
                 raise Exception("Failed to push SKANI database to Google Storage")
 
-    if not args.metabuli_skip:
-        # download prebuilt metabuli DB
-        # REMOVE if updating to automated build
-        metabuli_dir = mk_output_dir(out_dir, "metabuli_db")
-        metabuli_tar = metabuli_dir + "refseq_virus.tar.gz"
-        download_file(metabuli_db_url, metabuli_tar)
-        #  logger.info('Downloading human genome')
-        #   human_fna = download_human_genome(out_dir, human_url)
-        # download the gtdb-taxdump (UPDATE FOR NEW RELEASES)
-        #    logger.info('Downloading GTDB taxdump')
-        #   taxdump_path = out_dir + 'gtdb-taxdump.tar.gz'
-        #  download_file(taxdump_url, taxdump_path)
-        # taxdump_dir = decompress_tarchive(taxdump_path, out_dir)
-        #  logger.info('Building Metabuli database')
-        # build_metabuli_db(fna_dir, taxdump_dir, human_fna, metabuli_dir)
-        # metabuli_base = os.path.basename(metabuli_dir)
-
-        # compress the databases and push to gs buckets
-        logger.info("Pushing Metabuli DB to Google Storage")
-        #    metabuli_tar = compress_tarchive(metabuli_base, metabuli_base + '.tar.gz')
-        if not args.upload_skip:
-            gs_exit = push_to_gs_bucket(
-                gsbucket_url + os.path.basename(metabuli_tar), metabuli_tar
-            )
-            if gs_exit:
-                logger.error("Failed to push Metabuli database to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil -m cp -r {metabuli_tar} {gsbucket_url}metabuli/{os.path.basename(metabuli_tar)}`"
-                )
-                raise Exception("Failed to push Metabuli database to Google Storage")
-
     if not args.checkv_skip:
         # download the CheckV database
         checkv_dir = mk_output_dir(out_dir, "checkv_db")
@@ -533,13 +475,6 @@ def main():
                     f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
                 )
                 raise Exception("Failed to push CheckV database to Google Storage")
-
-    # kraken2 implementation:
-    # use skani data
-    # download kraken taxonomy
-    # download rodent, bat, and carnivora genomes
-    # build kraken2 database by adding files
-    # push to google buckets
 
     if not args.upload_skip:
         logger.info("Cleaning up")
