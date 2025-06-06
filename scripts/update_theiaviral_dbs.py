@@ -383,7 +383,7 @@ def main():
     nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
     gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
 
-    usage = "Download complete RefSeq viral genomes and build SKANI and CheckV databases\n"
+    usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument("-o", "--output_dir", help="Output directory")
     parser.add_argument(
