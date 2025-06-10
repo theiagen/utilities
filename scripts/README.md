@@ -151,7 +151,7 @@ $ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tool
 
 ### update_theiaviral_dbs.py
 
-TheiaViral uses CheckV for assembly QC and Skani for dynamic reference genome selection. This script downloads the CheckV database and builds a Skani viral database for non-SARS-CoV-2 complete genomes and another Skani database for SARS-CoV-2 complete genomes. It builds the viral genome databases from the latest viral nucleotide data, removes segmented accessions initially, and adds complete segmented genome assembly accessions identified from RefSeq to the non-SARS-CoV-2 database. Skani's databases are compressed using their high throughput sketching methodology. This will upload a date tagged Skani and CheckV databases. Following upload, an update will require updating Skani and CheckV database references to the new upload date version in TheiaViral scripts.
+TheiaViral uses CheckV for assembly QC and Skani for dynamic reference genome selection. This script downloads the CheckV database and builds a Skani viral database for non-SARS-CoV-2 complete genomes and another Skani database for RefSeq SARS-CoV-2 complete genomes. It builds the viral genome database from the latest non-RefSeq viral nucleotide data, removes segmented accessions initially, and adds complete RefSeq segmented genome assembly accessions to the non-SARS-CoV-2 database. SARS-CoV-2 is built from RefSeq only. Skani's databases are compressed using their high throughput sketching methodology. This will upload a date tagged Skani and CheckV databases. Following upload, an update will require updating Skani and CheckV database references to the new upload date version in TheiaViral scripts.
 
 
 #### requirements
