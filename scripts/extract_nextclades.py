@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def id_clade_mrca(tree, metadf, clade_col, clade):
+def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
     # extract df for clade
     clade_df = metadf[metadf[clade_col] == clade]
 
@@ -33,7 +33,11 @@ def id_clade_mrca(tree, metadf, clade_col, clade):
     mrca_tips = sorted(x.name for x in mrca.iter_tips())
 
     # extract clades associated with tips
-    mrca_df = metadf.loc[mrca_tips]
+    if noncomprehensive:
+        mrca_df_tips = sorted(set(metadf.index).intersection(set(mrca_tips)))
+        mrca_df = metadf.loc[mrca_df_tips]
+    else:
+        mrca_df = metadf.loc[mrca_tips]
 
     # identify clades descended from the MRCA
     mrca_clades = sorted(set(x for x in mrca_df[clade_col] if not pd.isna(x)))
@@ -80,7 +84,15 @@ def write_clade_muts(clade2muts, out_file):
                         f.write(f"{clade}\t{prot}\t{site}\t{alt}\n")
 
 
-def main(tree, metadf, clade_cols, nt_muts, aa_muts=None, excluded=set()):
+def main(
+    tree,
+    metadf,
+    clade_cols,
+    nt_muts,
+    aa_muts=None,
+    excluded=set(),
+    noncomprehensive=False,
+):
 
     # remove metadata entries that are not in the tree
     metadf = metadf[metadf.index.isin(tree.get_tip_names())]
@@ -92,7 +104,9 @@ def main(tree, metadf, clade_cols, nt_muts, aa_muts=None, excluded=set()):
             set([x for x in metadf[clade_col] if not pd.isna(x) and x not in excluded])
         )
         for clade in clades:
-            mrca_node = id_clade_mrca(tree, metadf, clade_col, clade)
+            mrca_node = id_clade_mrca(
+                tree, metadf, clade_col, clade, noncomprehensive=noncomprehensive
+            )
             if mrca_node:
                 logger.info(f"{clade_col}: {clade}\tMRCA: {mrca_node}")
                 clade2muts[clade]["nt"] = nt_muts["nodes"][mrca_node]["muts"]
@@ -125,6 +139,12 @@ if __name__ == "__main__":
         "-r", "--root", nargs="*", help="Root tip(s) / node for rooting"
     )
     parser.add_argument(
+        "-n",
+        "--noncomprehensive",
+        action="store_true",
+        help="Accept missing metadata for tips",
+    )
+    parser.add_argument(
         "-o", "--output", help="Output file name. DEFAULT: 'clades.tsv'"
     )
     args = parser.parse_args()
@@ -155,7 +175,13 @@ if __name__ == "__main__":
         exclusion_clades = set()
 
     clade2muts = main(
-        tree, metadf, args.clade_cols, nt_muts, aa_muts, excluded=exclusion_clades
+        tree,
+        metadf,
+        args.clade_cols,
+        nt_muts,
+        aa_muts,
+        excluded=exclusion_clades,
+        noncomprehensive=args.noncomprehensive,
     )
 
     # write the output
