@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
+    """Identify the most recent common ancestor (MRCA) of a clade if it is monophyletic.
+    Otherwise report a warning and return None."""
     # extract df for clade
     clade_df = metadf[metadf[clade_col] == clade]
 
@@ -66,6 +68,7 @@ def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
 
 
 def write_clade_muts(clade2muts, out_file):
+    """Extract and write the mutations for each clade to a TSV file."""
     with open(out_file, "w") as f:
         f.write("clade\tgene\tsite\talt\n")
         for clade, mut_dict in clade2muts.items():
@@ -93,7 +96,7 @@ def main(
     excluded=set(),
     noncomprehensive=False,
 ):
-
+    """Main function to extract mutations from clades."""
     # remove metadata entries that are not in the tree
     metadf = metadf[metadf.index.isin(tree.get_tip_names())]
 
