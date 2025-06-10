@@ -118,17 +118,26 @@ def download_viral_genomes(viral_accs_path, out_dir):
     precd_dir = os.getcwd()
     os.chdir(out_dir)
     if not os.path.isfile("ncbi_dataset.zip") and not os.path.isdir("ncbi_dataset"):
-        datasets_cmd = [
-            "datasets",
-            "download",
-            "virus",
-            "genome",
-            "accession",
-            "--complete-only",
-            "--inputfile",
-            viral_accs_path,
-        ]
-        datasets_exit = subprocess.call(datasets_cmd)
+        datasets_exit = 1
+        attempts = 0
+        while datasets_exit and attempts < 3:
+            attempts += 1
+            datasets_cmd = [
+                "datasets",
+                "download",
+                "virus",
+                "genome",
+                "accession",
+                "--complete-only",
+                "--inputfile",
+                viral_accs_path,
+            ]
+            datasets_exit = subprocess.call(datasets_cmd)
+        if attempts == 3:
+            logger.error(
+                "Failed to download genomes from NCBI datasets after 3 attempts"
+            )
+            raise Exception("Failed to download genomes from NCBI datasets")
     else:
         logger.info("NCBI datasets already downloaded")
     os.chdir(precd_dir)
@@ -140,17 +149,26 @@ def download_genomes(accs_path, out_dir):
     precd_dir = os.getcwd()
     os.chdir(out_dir)
     if not os.path.isfile("ncbi_dataset.zip") and not os.path.isdir("ncbi_dataset"):
-        datasets_cmd = [
-            "datasets",
-            "download",
-            "genome",
-            "accession",
-            "--assembly-level",
-            "complete",
-            "--inputfile",
-            accs_path,
-        ]
-        datasets_exit = subprocess.call(datasets_cmd)
+        datasets_exit = 1
+        attempts = 0
+        while datasets_exit and attempts < 3:
+            attempts += 1
+            datasets_cmd = [
+                "datasets",
+                "download",
+                "genome",
+                "accession",
+                "--assembly-level",
+                "complete",
+                "--inputfile",
+                accs_path,
+            ]
+            datasets_exit = subprocess.call(datasets_cmd)
+        if attempts == 3:
+            logger.error(
+                "Failed to download genomes from NCBI datasets after 3 attempts"
+            )
+            raise Exception("Failed to download genomes from NCBI datasets")
     else:
         logger.info("NCBI datasets already downloaded")
     os.chdir(precd_dir)
@@ -169,12 +187,46 @@ def pull_datasets_genomes(out_dir, fa_dir):
         shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
 
 
-def unzip_datasets(out_dir, datasets_zip):
+def unzip_datasets(out_dir, datasets_zip, rm=True):
     """Extracts genomes from datasets download"""
     if not os.path.isdir(out_dir + "ncbi_dataset/"):
         with zipfile.ZipFile(datasets_zip, "r") as zip_ref:
             zip_ref.extractall(out_dir)
+        if rm:
+            os.remove(datasets_zip)
     return f"{out_dir}ncbi_dataset/data/genomic.fna"
+
+
+def chunk_datasets(accs_path, out_dir, chunk_size=250000):
+    """Chunk the datasets file into smaller files"""
+    with open(accs_path, "r") as infile:
+        accs = [x.strip() for x in infile if x.strip() and not x.startswith("#")]
+
+    # acquire the chunks
+    chunks = [accs[i : i + chunk_size] for i in range(0, len(accs), chunk_size)]
+    # write the chunks
+    chunked_files = []
+    for i, chunk in enumerate(chunks):
+        chunk_file = f"{accs_path}.chunk{i + 1}"
+        with open(chunk_file, "w") as outfile:
+            outfile.write("\n".join(chunk))
+        chunked_files.append(chunk_file)
+
+    # download the genomes for each chunk and append to a complete genome file
+    full_genome = out_dir + "full_genome.fna"
+    if os.path.isfile(full_genome):
+        os.path.remove(full_genome)
+    for chunk in chunked_files:
+        logger.info(f"Running chunk: {chunk}")
+        datasets_zip = download_viral_genomes(chunk, out_dir)
+        genome_file = unzip_datasets(out_dir, datasets_zip)
+        with open(genome_file, "r") as infile:
+            with open(full_genome, "a") as outfile:
+                for line in infile:
+                    outfile.write(line)
+        shutil.rmtree(out_dir + "ncbi_dataset/")
+
+    return full_genome
 
 
 def dict2fa(fasta_dict, description=True):
@@ -244,8 +296,8 @@ def multifas2fas(fa_path, out_dir):
 def parse_viral_metadata(viral_metadata_path, out_dir):
     """Parse the viral metadata and extract the complete accessions"""
     coronavirus_names = {
-        "Severe acute respiratory syndrome-related coronavirus",
-        "Betacoronavirus pandemicum",
+        "severe acute respiratory syndrome-related coronavirus",
+        "betacoronavirus pandemicum",
     }
     segmented_families = {
         "orthomyxoviridae",
@@ -262,8 +314,8 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
             reader = csv.reader(raw)
             next(reader)
             for row in reader:
-                # skip SARS-Cov-2
-                if row[6] not in coronavirus_names:
+                # skip SARS-CoV-2 in one db
+                if row[6].lower() not in coronavirus_names:
                     if row[12] == "complete":
                         # we don't want redundancy and refseq segment reporting may be false
                         # we get segmented viruses from refseq later
@@ -281,7 +333,7 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                 else:
                     # we want SARS-Cov-2 accessions
                     if row[12] == "complete":
-                        # skip refseq due to redundancy
+                        # skip refseq accessions
                         if row[11].lower() != "refseq":
                             sars_out.write(row[0] + "\n")
 
@@ -396,8 +448,7 @@ def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
         os.mkdir(fna_dir)
 
     # downloading the viral genomes
-    datasets_zip = download_viral_genomes(accs_path, out_dir)
-    viral_fna = unzip_datasets(out_dir, datasets_zip)
+    viral_fna = chunk_datasets(accs_path, out_dir, chunk_size=250000)
     if segmented_accs:
         logger.info("Downloading RefSeq viral genomes")
         compile_complete_segments(segmented_accs, fna_dir, out_dir)
@@ -476,9 +527,10 @@ def main():
         logger.info(
             "Downloading non-SARS-CoV-2 viral genomes and building SKANI database"
         )
-        skani_tar, skani_base = skani_db_mngr(
-            viral_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
-        )
+        if False:
+            skani_tar, skani_base = skani_db_mngr(
+                viral_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
+            )
 
         # create the sars dir and run
         logger.info("Downloading SARS-CoV-2 genomes and building SKANI database")
