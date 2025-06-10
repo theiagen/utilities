@@ -104,9 +104,9 @@ def decompress_tarchive(tar_path, out_dir):
 
 def compress_tarchive(base_path, compression="tar", ext=".tar"):
     """Compress a directory into a tar archive"""
-    if ext == '.tar.gz':
+    if ext == ".tar.gz":
         file_open = "w:gz"
-    elif ext == '.tar':
+    elif ext == ".tar":
         file_open = "w"
     with tarfile.open(base_path + ext, file_open) as tar:
         tar.add(base_path, arcname=os.path.basename(base_path))
@@ -134,6 +134,7 @@ def download_viral_genomes(viral_accs_path, out_dir):
     os.chdir(precd_dir)
     return out_dir + "ncbi_dataset.zip"
 
+
 def download_genomes(accs_path, out_dir):
     """Calls NCBI datasets to download genomes"""
     precd_dir = os.getcwd()
@@ -147,7 +148,7 @@ def download_genomes(accs_path, out_dir):
             "--assembly-level",
             "complete",
             "--inputfile",
-            accs_path
+            accs_path,
         ]
         datasets_exit = subprocess.call(datasets_cmd)
     else:
@@ -155,16 +156,17 @@ def download_genomes(accs_path, out_dir):
     os.chdir(precd_dir)
     return out_dir + "ncbi_dataset.zip"
 
+
 def pull_datasets_genomes(out_dir, fa_dir):
     """Moves genomes in independent directoiries to a fasta directory"""
     prefix_dir = f"{out_dir}/ncbi_dataset/data/"
-    acc_dirs = [prefix_dir + x for x in os.listdir(prefix_dir) if os.path.isdir(prefix_dir + x)]
+    acc_dirs = [
+        prefix_dir + x for x in os.listdir(prefix_dir) if os.path.isdir(prefix_dir + x)
+    ]
     for acc_dir in acc_dirs:
         acc = os.path.basename(acc_dir)
         acc_fa = prefix_dir + acc + "/" + os.listdir(acc_dir)[0]
         shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
-
-
 
 
 def unzip_datasets(out_dir, datasets_zip):
@@ -243,12 +245,14 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
     """Parse the viral metadata and extract the complete accessions"""
     coronavirus_names = {
         "Severe acute respiratory syndrome-related coronavirus",
-        "Betacoronavirus pandemicum"
-        }
-    segmented_families = {"orthomyxoviridae", 
-                          "hantaviridae",
-                          "arenaviridae",
-                          "phenuiviridae"}
+        "Betacoronavirus pandemicum",
+    }
+    segmented_families = {
+        "orthomyxoviridae",
+        "hantaviridae",
+        "arenaviridae",
+        "phenuiviridae",
+    }
     viral_accs_path = f"{out_dir}viral_accessions.txt"
     count = 0
     segmented_accs = []
@@ -264,7 +268,7 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                         # we get segmented viruses from refseq later
                         if row[8].lower() in segmented_families:
                             segmented_accs.append(row[0])
-                        elif row[11].lower() != 'refseq':
+                        elif row[11].lower() != "refseq":
                             # forego segments because they cannot be reliably linked
                             if not row[14]:
                                 count += 1
@@ -281,14 +285,14 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
 
 def compile_complete_segments(segmented_accs, fa_dir, out_dir):
     """Identify complete segment accessions"""
-    if not os.path.isdir(f'{out_dir}segmented/'):
-        os.mkdir(f'{out_dir}segmented/')
+    if not os.path.isdir(f"{out_dir}segmented/"):
+        os.mkdir(f"{out_dir}segmented/")
     segmented_accs_path = f"{out_dir}segmented/segmented_accessions.txt"
     seg_dir = f"{out_dir}segmented/"
 
     with open(segmented_accs_path, "w") as out:
-        out.write('\n'.join(segmented_accs) + '\n')
-    if not os.path.isdir(f'{out_dir}segmented/ncbi_dataset/'):
+        out.write("\n".join(segmented_accs) + "\n")
+    if not os.path.isdir(f"{out_dir}segmented/ncbi_dataset/"):
         datasets_cmd = [
             "datasets",
             "summary",
@@ -299,19 +303,19 @@ def compile_complete_segments(segmented_accs, fa_dir, out_dir):
             "gene",
             "--inputfile",
             segmented_accs_path,
-            ]
-        datasets_exit = subprocess.run(datasets_cmd, stdout = subprocess.PIPE)
+        ]
+        datasets_exit = subprocess.run(datasets_cmd, stdout=subprocess.PIPE)
         datasets_raw = datasets_exit.stdout.decode("utf-8")
-        datasets_json = [json.loads(line) for line in datasets_raw.split('\n') if line]
+        datasets_json = [json.loads(line) for line in datasets_raw.split("\n") if line]
         gcfs = []
         for hit in datasets_json:
-            if 'annotations' in hit:
-                if 'assembly_accession' in hit['annotations'][0]:
-                    gcfs.append(hit['annotations'][0]['assembly_accession'])
-        full_gcfs = sorted(set(x for x in gcfs if x.startswith(("GCF_","GCA_"))))
+            if "annotations" in hit:
+                if "assembly_accession" in hit["annotations"][0]:
+                    gcfs.append(hit["annotations"][0]["assembly_accession"])
+        full_gcfs = sorted(set(x for x in gcfs if x.startswith(("GCF_", "GCA_"))))
         complete_segments_path = f"{out_dir}segmented/complete_segments.txt"
         with open(complete_segments_path, "w") as out:
-            out.write('\n'.join(full_gcfs) + '\n')
+            out.write("\n".join(full_gcfs) + "\n")
 
         # download the datasets zip file
         logger.info("Downloading segmented genomes from NCBI datasets")
@@ -393,10 +397,16 @@ def main():
         "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
     )
     parser.add_argument(
-        "-u", "--upload_skip", help="Skip uploading to Google Storage", action="store_true"
+        "-u",
+        "--upload_skip",
+        help="Skip uploading to Google Storage",
+        action="store_true",
     )
     parser.add_argument(
-        "-r", "--ram", type=int, default=16,
+        "-r",
+        "--ram",
+        type=int,
+        default=16,
     )
     args = parser.parse_args()
 
@@ -416,7 +426,9 @@ def main():
 
         # parse the metadata and extract the complete non-SARS viral accessions
         logger.info("Parsing viral metadata")
-        viral_accs_path, segmented_accs = parse_viral_metadata(viral_metadata_path, out_dir)
+        viral_accs_path, segmented_accs = parse_viral_metadata(
+            viral_metadata_path, out_dir
+        )
 
         # downloading the viral genomes
         datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
