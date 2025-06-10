@@ -254,9 +254,10 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
         "phenuiviridae",
     }
     viral_accs_path = f"{out_dir}viral_accessions.txt"
+    sars_accs_path = f"{out_dir}sars-cov-2_accessions.txt"
     count = 0
     segmented_accs = []
-    with open(viral_accs_path, "w") as out:
+    with open(viral_accs_path, "w") as out, open(sars_accs_path, "w") as sars_out:
         with gzip.open(viral_metadata_path, "rt") as raw:
             reader = csv.reader(raw)
             next(reader)
@@ -277,10 +278,16 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                                 segmented_accs.append(row[0])
                         elif row[14]:
                             segmented_accs.append(row[0])
+                else:
+                    # we want SARS-Cov-2 accessions
+                    if row[12] == "complete":
+                        # skip refseq due to redundancy
+                        if row[11].lower() != "refseq":
+                            sars_out.write(row[0] + "\n")
 
-    logger.info(f"Found {count} compatible viral accessions")
+    logger.info(f"Found {count} compatible non-SARS-CoV-2 viral accessions")
 
-    return viral_accs_path, segmented_accs
+    return viral_accs_path, sars_accs_path, segmented_accs
 
 
 def compile_complete_segments(segmented_accs, fa_dir, out_dir):
@@ -382,6 +389,41 @@ def rm_files(out_dir):
             shutil.rmtree(path_)
 
 
+def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
+    """Download the viral genomes and build the SKANI database"""
+    fna_dir = out_dir + "fna/"
+    if not os.path.isdir(fna_dir):
+        os.mkdir(fna_dir)
+
+    # downloading the viral genomes
+    datasets_zip = download_viral_genomes(accs_path, out_dir)
+    viral_fna = unzip_datasets(out_dir, datasets_zip)
+    if segmented_accs:
+        logger.info("Downloading RefSeq viral genomes")
+        compile_complete_segments(segmented_accs, fna_dir, out_dir)
+
+    logger.info("Extracting NCBI viral genomes from multifasta")
+    multifas2fas(viral_fna, fna_dir)
+
+    fa_list = f"{out_dir}fna_list.txt"
+    output_list_fastas(fna_dir, fa_list)
+
+    # build the SKANI database
+    logger.info("Building SKANI database")
+    skani_dir = mk_output_dir(out_dir, db_base, mkdir=False)
+    # can't exist prior to building db
+    if os.path.isdir(skani_dir):
+        shutil.rmtree(skani_dir)
+    build_skani_db(fa_list, skani_dir, threads=8)
+    skani_base = os.path.basename(skani_dir[:-1])
+
+    os.chdir(out_dir)
+    logger.info("Compressing SkaniDB into tarchive")
+    skani_tar = compress_tarchive(skani_base)
+
+    return skani_tar, skani_base
+
+
 def main():
     # hard-coded URLs
     nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
@@ -426,37 +468,27 @@ def main():
 
         # parse the metadata and extract the complete non-SARS viral accessions
         logger.info("Parsing viral metadata")
-        viral_accs_path, segmented_accs = parse_viral_metadata(
+        viral_accs_path, sars_accs_path, segmented_accs = parse_viral_metadata(
             viral_metadata_path, out_dir
         )
 
-        # downloading the viral genomes
-        datasets_zip = download_viral_genomes(viral_accs_path, out_dir)
-        viral_fna = unzip_datasets(out_dir, datasets_zip)
-        fna_dir = out_dir + "fna/"
-        if not os.path.isdir(fna_dir):
-            os.mkdir(fna_dir)
-        logger.info("Downloading RefSeq viral genomes")
-        compile_complete_segments(segmented_accs, fna_dir, out_dir)
+        # download the viral genomes and build the SKANI database
+        logger.info(
+            "Downloading non-SARS-CoV-2 viral genomes and building SKANI database"
+        )
+        skani_tar, skani_base = skani_db_mngr(
+            viral_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
+        )
 
-        logger.info("Extracting NCBI viral genomes from multifasta")
-        multifas2fas(viral_fna, fna_dir)
+        # create the sars dir and run
+        logger.info("Downloading SARS-CoV-2 genomes and building SKANI database")
+        sars_dir = out_dir + "sars-cov-2/"
+        if not os.path.isdir(sars_dir):
+            os.mkdir(sars_dir)
+        sars_skani_tar, sars_skani_base = skani_db_mngr(
+            sars_accs_path, sars_dir, "sars-cov-2_skani_db", segmented_accs=None
+        )
 
-        fa_list = f"{out_dir}fna_list.txt"
-        output_list_fastas(fna_dir, fa_list)
-
-        # build the SKANI database
-        logger.info("Building SKANI database")
-        skani_dir = mk_output_dir(out_dir, "skani_db", mkdir=False)
-        # can't exist prior to building db
-        if os.path.isdir(skani_dir):
-            shutil.rmtree(skani_dir)
-        build_skani_db(fa_list, skani_dir, threads=8)
-        skani_base = os.path.basename(skani_dir[:-1])
-
-        os.chdir(out_dir)
-        logger.info("Compressing SkaniDB into tarchive")
-        skani_tar = compress_tarchive(skani_base)
         # not worth compressing because skani is already compressing
         logger.info("Pushing SkaniDB to Google Storage")
         if not args.upload_skip:
@@ -465,6 +497,15 @@ def main():
                 logger.error("Failed to push SKANI database to Google Storage")
                 logger.error(
                     f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}skani/{skani_base}`"
+                )
+                raise Exception("Failed to push SKANI database to Google Storage")
+            gs_exit = push_to_gs_bucket(
+                gsbucket_url + sars_skani_base + ".tar", sars_skani_tar
+            )
+            if gs_exit:
+                logger.error("Failed to push SKANI database to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil -m cp -r {sars_dir} {gsbucket_url}skani/{sars_skani_base}`"
                 )
                 raise Exception("Failed to push SKANI database to Google Storage")
 
