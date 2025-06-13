@@ -342,12 +342,12 @@ def parse_pangolin_json(pangolin_json_path):
         pangolin_data = json.load(infile)
     for lineage in pangolin_data:
         # only want the main lineages
-        lineages.add(lineage[:lineage.find('.')])
+        lineages.add(lineage[: lineage.find(".")])
 
     return sorted(lineages)
 
 
-def lineage2accs(lineages, out_dir, accessions = 1):
+def lineage2accs(lineages, out_dir, accessions=1):
     """Grab the top accessions for a lineage"""
     accs_path = f"{out_dir}accessions.txt"
     cmd_scaf = [
@@ -361,16 +361,18 @@ def lineage2accs(lineages, out_dir, accessions = 1):
         "--complete-only",
         "--limit",
         str(accessions),
-        "--lineage"
-        ]
+        "--lineage",
+    ]
     with open(accs_path, "w") as out:
-        for lineage in lineages: 
+        for lineage in lineages:
             lineage_scaf = cmd_scaf + [lineage]
             datasets_exit = subprocess.run(
                 lineage_scaf, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
             datasets_raw = datasets_exit.stdout.decode("utf-8")
-            datasets_json = [json.loads(line) for line in datasets_raw.split("\n") if line]
+            datasets_json = [
+                json.loads(line) for line in datasets_raw.split("\n") if line
+            ]
             for hit in datasets_json:
                 out.write(hit["accession"] + "\n")
 
@@ -570,7 +572,9 @@ def main():
         if not os.path.isfile(pango_json_path):
             download_file(pangolin_json_url, pango_json_path)
         pango_lineages = parse_pangolin_json(pango_json_path)
-        logger.info(f"Finding up to {sars_accs_per_lineage * len(pango_lineages)} SARS-CoV-2 accessions")
+        logger.info(
+            f"Finding up to {sars_accs_per_lineage * len(pango_lineages)} SARS-CoV-2 accessions"
+        )
         sars_accs_path = lineage2accs(pango_lineages, sars_dir, sars_accs_per_lineage)
 
         all_accs_path = out_dir + "all_accessions.txt"
