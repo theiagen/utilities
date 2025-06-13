@@ -306,10 +306,9 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
         "phenuiviridae",
     }
     viral_accs_path = f"{out_dir}viral_accessions.txt"
-    sars_accs_path = f"{out_dir}sars-cov-2_accessions.txt"
     count = 0
     segmented_accs = []
-    with open(viral_accs_path, "w") as out, open(sars_accs_path, "w") as sars_out:
+    with open(viral_accs_path, "w") as out:
         with gzip.open(viral_metadata_path, "rt") as raw:
             reader = csv.reader(raw)
             next(reader)
@@ -330,16 +329,52 @@ def parse_viral_metadata(viral_metadata_path, out_dir):
                                 segmented_accs.append(row[0])
                         elif row[14]:
                             segmented_accs.append(row[0])
-                else:
-                    # we want SARS-Cov-2 accessions
-                    if row[12] == "complete":
-                        # skip refseq accessions
-                        if row[11].lower() != "refseq":
-                            sars_out.write(row[0] + "\n")
 
     logger.info(f"Found {count} compatible non-SARS-CoV-2 viral accessions")
 
-    return viral_accs_path, sars_accs_path, segmented_accs
+    return viral_accs_path, segmented_accs
+
+
+def parse_pangolin_json(pangolin_json_path):
+    """Parse the pangolin JSON file to extract SARS-CoV-2 accessions"""
+    lineages = set()
+    with open(pangolin_json_path, "r") as infile:
+        pangolin_data = json.load(infile)
+    for lineage in pangolin_data:
+        # only want the main lineages
+        lineages.add(lineage[:lineage.find('.')])
+
+    return sorted(lineages)
+
+
+def lineage2accs(lineages, out_dir, accessions = 1):
+    """Grab the top accessions for a lineage"""
+    accs_path = f"{out_dir}accessions.txt"
+    cmd_scaf = [
+        "datasets",
+        "summary",
+        "virus",
+        "genome",
+        "taxon",
+        "sars-cov-2",
+        "--as-json-lines",
+        "--complete-only",
+        "--limit",
+        str(accessions),
+        "--lineage"
+        ]
+    with open(accs_path, "w") as out:
+        for lineage in lineages: 
+            lineage_scaf = cmd_scaf + [lineage]
+            datasets_exit = subprocess.run(
+                lineage_scaf, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            datasets_raw = datasets_exit.stdout.decode("utf-8")
+            datasets_json = [json.loads(line) for line in datasets_raw.split("\n") if line]
+            for hit in datasets_json:
+                out.write(hit["accession"] + "\n")
+
+    return accs_path
 
 
 def compile_complete_segments(segmented_accs, fa_dir, out_dir):
@@ -479,6 +514,8 @@ def main():
     # hard-coded URLs
     nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
     gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
+    pangolin_json_url = "https://github.com/cov-lineages/lineages-website/raw/refs/heads/master/_data/lineage_data.full.json"
+    sars_accs_per_lineage = 1
 
     usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
@@ -518,27 +555,33 @@ def main():
         download_file(nucleotide_viral_url, viral_metadata_path)
 
         # parse the metadata and extract the complete non-SARS viral accessions
-        logger.info("Parsing viral metadata")
-        viral_accs_path, sars_accs_path, segmented_accs = parse_viral_metadata(
+        logger.info("Parsing viral metadata for non-SARS-CoV-2 accessions")
+        viral_accs_path, segmented_accs = parse_viral_metadata(
             viral_metadata_path, out_dir
         )
 
-        # download the viral genomes and build the SKANI database
-        logger.info(
-            "Downloading non-SARS-CoV-2 viral genomes and building SKANI database"
-        )
-        if False:
-            skani_tar, skani_base = skani_db_mngr(
-                viral_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
-            )
-
         # create the sars dir and run
-        logger.info("Downloading SARS-CoV-2 genomes and building SKANI database")
+        logger.info("Acquiring SARS-CoV-2 accessions")
         sars_dir = out_dir + "sars-cov-2/"
         if not os.path.isdir(sars_dir):
             os.mkdir(sars_dir)
-        sars_skani_tar, sars_skani_base = skani_db_mngr(
-            sars_accs_path, sars_dir, "sars-cov-2_skani_db", segmented_accs=None
+
+        pango_json_path = sars_dir + "pangolin_lineages.json"
+        if not os.path.isfile(pango_json_path):
+            download_file(pangolin_json_url, pango_json_path)
+        pango_lineages = parse_pangolin_json(pango_json_path)
+        logger.info(f"Finding up to {sars_accs_per_lineage * len(pango_lineages)} SARS-CoV-2 accessions")
+        sars_accs_path = lineage2accs(pango_lineages, sars_dir, sars_accs_per_lineage)
+
+        all_accs_path = out_dir + "all_accessions.txt"
+        with open(all_accs_path, "w") as out:
+            with open(viral_accs_path, "r") as viral_in:
+                out.write(viral_in.read().strip() + "\n")
+            with open(sars_accs_path, "r") as sars_in:
+                out.write(sars_in.read())
+
+        skani_tar, skani_base = skani_db_mngr(
+            all_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
         )
 
         # not worth compressing because skani is already compressing
@@ -549,15 +592,6 @@ def main():
                 logger.error("Failed to push SKANI database to Google Storage")
                 logger.error(
                     f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}skani/{skani_base}`"
-                )
-                raise Exception("Failed to push SKANI database to Google Storage")
-            gs_exit = push_to_gs_bucket(
-                gsbucket_url + sars_skani_base + ".tar", sars_skani_tar
-            )
-            if gs_exit:
-                logger.error("Failed to push SKANI database to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil -m cp -r {sars_dir} {gsbucket_url}skani/{sars_skani_base}`"
                 )
                 raise Exception("Failed to push SKANI database to Google Storage")
 
