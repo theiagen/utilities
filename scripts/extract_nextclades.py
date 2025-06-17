@@ -29,6 +29,7 @@ def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
     clade_tips = sorted(set(clade_df.index))
     if len(clade_tips) == 1:
         # clade is a single tip, extract the node as the leaf name
+        logger.info(f"{clade} mutations will be derived from one tip: {clade_tips[0]}")
         return clade_tips[0]
     # get MRCA
     mrca = tree.lowest_common_ancestor(clade_tips)
