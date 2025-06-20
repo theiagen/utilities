@@ -19,7 +19,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
+def id_clade_mrca(
+    tree, metadf, clade_col, clade, noncomprehensive=False, skip_singletons=True
+):
     """Identify the most recent common ancestor (MRCA) of a clade if it is monophyletic.
     Otherwise report a warning and return None."""
     # extract df for clade
@@ -28,9 +30,17 @@ def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
     # get tips from clade
     clade_tips = sorted(set(clade_df.index))
     if len(clade_tips) == 1:
-        # clade is a single tip, extract the node as the leaf name
-        logger.info(f"{clade} mutations will be derived from one tip: {clade_tips[0]}")
-        return clade_tips[0]
+        if skip_singletons:
+            logger.warning(
+                f"{clade} is a singleton clade with one tip: {clade_tips[0]} - Skipping."
+            )
+            return None, None
+        else:
+            # clade is a single tip, extract the node as the leaf name
+            logger.info(
+                f"{clade} mutations will be derived from one tip: {clade_tips[0]}"
+            )
+            return clade_tips[0], clade_tips[0]
     # get MRCA
     mrca = tree.lowest_common_ancestor(clade_tips)
     mrca_tips = sorted(x.name for x in mrca.iter_tips())
@@ -51,7 +61,7 @@ def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
         logger.warning(
             f"{clade} is not monophyletic; conflicts with {conflicts} - Skipping."
         )
-        return None
+        return None, None
     # extract node from monophyletic clade
     else:
         # convert to ete3 object
@@ -65,7 +75,7 @@ def id_clade_mrca(tree, metadf, clade_col, clade, noncomprehensive=False):
             .replace('"', "")
         )
     #        clade2node[clade] =
-    return mrca_node
+    return mrca_node, mrca_tips
 
 
 def write_clade_muts(clade2muts, out_file):
@@ -88,18 +98,53 @@ def write_clade_muts(clade2muts, out_file):
                         f.write(f"{clade}\t{prot}\t{site}\t{alt}\n")
 
 
+def check_nt_uniqueness(muts_set, in_node, nt2muts):
+    """Check if the mutations are unique enough to call. Can not compile mutations up the tree, so non-comprehensive. See export JSON function"""
+    for node, muts_d in nt2muts["nodes"].items():
+        if node != in_node:
+            # if all the mutations are present in another node, return False
+            if not muts_set.difference(set(muts_d["muts"])):
+                return False
+    return True
+
+
+def compile_export_json(tree_json):
+    """Compile clades to export nodes"""
+    node2clades = {}
+    for child in tree_json["children"]:
+        if "children" in child:
+            node2clades = {**node2clades, **compile_export_json(child)}
+        if "node_attrs" in child:
+            if "clade_membership" in child["node_attrs"]:
+                node2clades[child["name"]] = child["node_attrs"]["clade_membership"][
+                    "value"
+                ]
+    return node2clades
+
+
 def main(
     tree,
     metadf,
     clade_cols,
     nt_muts,
     aa_muts=None,
+    export_json=None,
     excluded=set(),
     noncomprehensive=False,
+    skip_singletons=True,
 ):
     """Main function to extract mutations from clades."""
     # remove metadata entries that are not in the tree
     metadf = metadf[metadf.index.isin(tree.get_tip_names())]
+
+    clades2nodes = defaultdict(set)
+    # populate a dictionary of clades to reference
+    if export_json:
+        node2clades = compile_export_json(export_json["tree"])
+        tips = set(x.name for x in tree.iter_tips())
+        for node, clade in node2clades.items():
+            if node in tips:
+                clades2nodes[clade].add(node)
 
     clade2muts = defaultdict(lambda: {"nt": [], "aa": {}})
     for clade_col in clade_cols:
@@ -108,15 +153,33 @@ def main(
             set([x for x in metadf[clade_col] if not pd.isna(x) and x not in excluded])
         )
         for clade in clades:
-            mrca_node = id_clade_mrca(
-                tree, metadf, clade_col, clade, noncomprehensive=noncomprehensive
+            mrca_node, mrca_tips = id_clade_mrca(
+                tree,
+                metadf,
+                clade_col,
+                clade,
+                noncomprehensive=noncomprehensive,
+                skip_singletons=skip_singletons,
             )
             if mrca_node:
                 logger.info(f"{clade_col}: {clade}\tMRCA: {mrca_node}")
-                clade2muts[clade]["nt"] = nt_muts["nodes"][mrca_node]["muts"]
+                clade_nt_muts = nt_muts["nodes"][mrca_node]["muts"]
+                # check for unique mutations
+                if clades2nodes:
+                    if clades2nodes[clade].difference(set(mrca_tips)):
+                        logger.warning(
+                            f"{clade} does not have distinguishing mutations - Skipping."
+                        )
+                        continue
+                #                if check_nt_uniqueness(set(clade_nt_muts), mrca_node, nt_muts):
+                clade2muts[clade]["nt"] = clade_nt_muts
                 if aa_muts:
                     for prot, muts in aa_muts["nodes"][mrca_node]["aa_muts"].items():
                         clade2muts[clade]["aa"][prot] = muts
+    #               else:
+    #                  logger.warning(
+    #                     f"{clade} mutations are not unique"
+    #                )
     return clade2muts
 
 
@@ -137,8 +200,9 @@ if __name__ == "__main__":
     parser.add_argument("-nt", "--nt_muts", required=True, help="Path to nt_muts JSON")
     parser.add_argument("-aa", "--aa_muts", help="Path to aa_muts JSON")
     parser.add_argument(
-        "-e", "---exclude", nargs="*", help="Clades to exclude from analysis"
+        "-e", "--export_json", help="AUGUR export JSON to cross-reference clades"
     )
+    parser.add_argument("---exclude", nargs="*", help="Clades to exclude from analysis")
     parser.add_argument(
         "-r", "--root", nargs="*", help="Root tip(s) / node for rooting"
     )
@@ -147,6 +211,12 @@ if __name__ == "__main__":
         "--noncomprehensive",
         action="store_true",
         help="Accept missing metadata for tips",
+    )
+    parser.add_argument(
+        "-s",
+        "--skip_singletons",
+        action="store_true",
+        help="Skip singletons (clades with one tip)",
     )
     parser.add_argument(
         "-o", "--output", help="Output file name. DEFAULT: 'clades.tsv'"
@@ -173,6 +243,12 @@ if __name__ == "__main__":
     else:
         aa_muts = None
 
+    if args.export_json:
+        with open(Path(args.export_json), "r") as f:
+            export_json = json.load(f)
+    else:
+        export_json = None
+
     if args.exclude:
         exclusion_clades = set(args.exclude)
     else:
@@ -184,8 +260,10 @@ if __name__ == "__main__":
         args.clade_cols,
         nt_muts,
         aa_muts,
+        export_json,
         excluded=exclusion_clades,
         noncomprehensive=args.noncomprehensive,
+        skip_singletons=args.skip_singletons,
     )
 
     # write the output
