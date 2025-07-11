@@ -120,7 +120,7 @@ def write_clade_muts(clade2muts, out_file):
 
 
 def check_nt_uniqueness(muts_set, tips2muts, mrca_tips, tree, mrca_node, nt_muts):
-    """Check if the mutations are unique enough to call. Can not compile mutations up the tree, so non-comprehensive. See export JSON function"""
+    """Check if the mutations are unique enough to call."""
     failing_tips = []
     for tip in set(tips2muts.keys()).difference(set(mrca_tips)):
         tip_muts = tips2muts[tip]["nt"]
