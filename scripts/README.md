@@ -163,5 +163,6 @@ $ python extract_nextclades.py \
   -c <CLADE_COL_HEADER1> <CLADE_COL_HEADER2> ... \
   -tc <TIP_LABEL_COL> \
   -nt <NT_MUTS.json> \
-  -aa [AA_MUTS.json]
+  -aa [AA_MUTS.json] \
+  -n
 ```
