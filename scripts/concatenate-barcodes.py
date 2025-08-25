@@ -12,12 +12,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Concatenate barcode files. Existing output files will be overwritten.")
     parser.add_argument("input_dir", help="Input directory containing barcode files")
     parser.add_argument("output_dir", nargs="?", default=".", help="Output directory for concatenated files")
-    parser.add_argument("--file_extension", default=".fastq.gz", help="File extension to concatenate")
-    parser.add_argument("--output_prefix", default="", help="Prefix for output files")
-    parser.add_argument("-r", "--recursive", action="store_true", help="Process subdirectories recursively")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument("--dry_run", action="store_true", help="Show commands without executing")
-    parser.add_argument("--log_file", default="concatenate_barcodes.log", help="Log file path")
+    parser.add_argument("-e", "--file_extension", default=".fastq.gz", help="File extension to concatenate")
+    parser.add_argument("-r", "--recursive", default=True, action="store_true", help="Process subdirectories recursively")
+    parser.add_argument("-f", "--flat", default=False, action="store_false", help="Do not process subdirectories recursively. Incompatible with `--gcp`")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("-d", "--dry_run", action="store_true", help="Show commands without executing")
+    parser.add_argument("-l", "--log_file", default="concatenate_barcodes.log", help="Log file path")
+    parser.add_argument("-m", "--map_file", default=None, help="Optional mapping file for renaming (directory name to sample name)")
     parser.add_argument("--gcp", action="store_true", help="Enable Google Cloud Storage mode")
     parser.add_argument("--temp_dir", default=None, help="Temporary directory for GCS files")
     parser.add_argument("--keep_temp_files", action="store_true", help="Keep temporary files after processing")
@@ -49,19 +50,24 @@ def list_gcs_subdirectories(gcs_path, verbose=False):
     
     cmd = "gcloud storage ls {}".format(gcs_path)
     output = run_shell_cmd(cmd, verbose)
-    
-    return [line.strip() for line in output.split('\n') if line.strip()] if output else []
 
-def process_directory(input_path, output_dir, name, args):
+    # remove all paths from the list that equal the original gcs_path or end with a colon
+
+    if output:
+        output = [line for line in output.split('\n') if line.strip() and not line.endswith(':') and not line == gcs_path]
+        if verbose:
+            logging.debug("GCS subdirectories found: {}".format(output))
+        
+    return output if output else []
+
+def process_directory(input_path, name, args):
     """Process a single directory by concatenating its files"""
-    # Build output filename
-    prefix = args.output_prefix + "_" if args.output_prefix else ""
-    
+    # Build output filename    
     if args.gcp:
-        if not output_dir.endswith('/'):
-            output_dir += '/'
+        if not args.output_dir.endswith('/'):
+            args.output_dir += '/'
     
-    output_file = os.path.join(output_dir, "{}{}.all{}".format(prefix, name, args.file_extension))
+    output_file = os.path.join(args.output_dir, "{}.all{}".format(name, args.file_extension))
     
     if args.gcp:        
         return handle_gcs_files(input_path, output_file, args)
@@ -103,9 +109,6 @@ def handle_gcs_files(input_path, output_file, args):
             input_path += '/'
         cmd = "gcloud storage ls {}*".format(input_path)
         
-        if args.verbose:
-            logging.debug("Listing GCS files: {}".format(cmd))
-        
         file_list = run_shell_cmd(cmd, args.verbose)
         if not file_list:
             logging.warning("No files found in {}".format(input_path))
@@ -123,12 +126,8 @@ def handle_gcs_files(input_path, output_file, args):
         
         for gcs_file in gcs_files:
             cat_cmd = "gcloud storage cat {} >> {}".format(gcs_file, local_output)
-            if args.verbose:
-                logging.debug("Appending file from GCS: {}".format(cat_cmd))
             run_shell_cmd(cat_cmd, args.verbose)
         
-        if args.verbose:
-            logging.debug("Uploading to GCS: {} -> {}".format(local_output, output_file))
         return run_shell_cmd("gcloud storage cp {} {}".format(local_output, output_file), args.verbose) is not None
     finally:
         if os.path.exists(temp_dir) and not args.keep_temp_files:
@@ -151,7 +150,19 @@ def main():
 
     if args.dry_run:
         logging.info("Performing dry run - no files will be modified")
-    
+        
+    mapping = {}
+    if args.map_file is not None:
+        with open(args.map_file, 'r') as mf:
+            for line in mf:
+                parts = line.strip().split()
+                if len(parts) != 2:
+                    logging.warning("Invalid mapping line (ignored): {}".format(line.strip()))
+                    continue
+                else:
+                    mapping[parts[0]] = parts[1]
+                logging.info("Loaded mapping: {} -> {}".format(parts[0], parts[1]))
+
     if args.gcp:
         try:
             run_shell_cmd("gcloud storage --help", args.verbose)
@@ -169,6 +180,10 @@ def main():
         
         logging.info("Using Google Cloud Storage mode: {} -> {}".format(args.input_dir, args.output_dir))
     
+    if args.flat:
+        logging.info("Flat mode enabled: processing only the specified input directory")
+        args.recursive = False
+    
     if args.recursive:
         logging.info("Processing in recursive mode (processing each subdirectory)")
         
@@ -176,12 +191,19 @@ def main():
             subdirs = list_gcs_subdirectories(args.input_dir, args.verbose)
             for subdir_path in subdirs:
                 subdir_name = os.path.basename(subdir_path.rstrip('/'))
-                process_directory(subdir_path, args.output_dir, subdir_name, args)
+                # rename subdir_name if in mapping
+                if args.map_file is not None and subdir_name in mapping:
+                    subdir_name = mapping[subdir_name]
+                    logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(subdir_path, subdir_name))
+                process_directory(subdir_path, subdir_name, args)
         else:
-            for subdir in os.listdir(args.input_dir):
-                subdir_path = os.path.join(args.input_dir, subdir)
+            for subdir_name in os.listdir(args.input_dir):
+                subdir_path = os.path.join(args.input_dir, subdir_name)
                 if os.path.isdir(subdir_path):
-                    process_directory(subdir_path, args.output_dir, subdir, args)
+                    if args.map_file is not None and subdir_name in mapping:
+                        subdir_name = mapping[subdir_name]
+                        logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(subdir_path, subdir_name))
+                    process_directory(subdir_path, subdir_name, args)
     else:
         logging.info("Processing in non-recursive mode (concatenating files in input directory)")
         
@@ -189,7 +211,10 @@ def main():
         dir_name = os.path.basename(args.input_dir.rstrip('/').split('/')[-1]) if args.gcp else \
                    os.path.basename(os.path.normpath(args.input_dir))
             
-        process_directory(args.input_dir, args.output_dir, dir_name, args)
+        if args.map_file is not None and dir_name in mapping:
+            dir_name = mapping[dir_name]
+            logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(args.input_dir, dir_name))
+        process_directory(args.input_dir, dir_name, args)
 
     logging.info("Concatenation completed successfully")
 
