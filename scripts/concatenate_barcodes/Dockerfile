@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y google-cloud-sdk \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/concatenate-barcodes.py /app/
+COPY scripts/concatenate_barcodes/concatenate-barcodes.py /app/
 
 RUN chmod +x /app/*
 ENV PATH="/app:${PATH}"

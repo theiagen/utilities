@@ -13,12 +13,11 @@ def parse_args():
     parser.add_argument("input_dir", help="Input directory containing barcode files")
     parser.add_argument("output_dir", nargs="?", default=".", help="Output directory for concatenated files")
     parser.add_argument("-e", "--file_extension", default=".fastq.gz", help="File extension to concatenate")
-    parser.add_argument("-r", "--recursive", default=True, action="store_true", help="Process subdirectories recursively")
-    parser.add_argument("-f", "--flat", default=False, action="store_false", help="Do not process subdirectories recursively. Incompatible with `--gcp`")
+    parser.add_argument("-f", "--flat", default=False, action="store_true", help="Do not process subdirectories recursively. Incompatible with `--gcp`")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("-d", "--dry_run", action="store_true", help="Show commands without executing")
     parser.add_argument("-l", "--log_file", default="concatenate_barcodes.log", help="Log file path")
-    parser.add_argument("-m", "--map_file", default=None, help="Optional mapping file for renaming (directory name to sample name)")
+    parser.add_argument("-m", "--map_file", default=None, help="Optional mapping file for renaming (directory name to sample name); tab-delimited")
     parser.add_argument("--gcp", action="store_true", help="Enable Google Cloud Storage mode")
     parser.add_argument("--temp_dir", default=None, help="Temporary directory for GCS files")
     parser.add_argument("--keep_temp_files", action="store_true", help="Keep temporary files after processing")
@@ -155,9 +154,9 @@ def main():
     if args.map_file is not None:
         with open(args.map_file, 'r') as mf:
             for line in mf:
-                parts = line.strip().split()
+                parts = line.strip('\t').split()
                 if len(parts) != 2:
-                    logging.warning("Invalid mapping line (ignored): {}".format(line.strip()))
+                    logging.warning("Invalid mapping line (ignored): {}".format(line.strip('\t')))
                     continue
                 else:
                     mapping[parts[0]] = parts[1]
@@ -182,9 +181,18 @@ def main():
     
     if args.flat:
         logging.info("Flat mode enabled: processing only the specified input directory")
-        args.recursive = False
-    
-    if args.recursive:
+        logging.info("Processing in non-recursive mode (concatenating files in input directory)")
+        
+        # Extract directory name for output file
+        dir_name = os.path.basename(args.input_dir.rstrip('/').split('/')[-1]) if args.gcp else \
+                   os.path.basename(os.path.normpath(args.input_dir))
+            
+        if args.map_file is not None and dir_name in mapping:
+            dir_name = mapping[dir_name]
+            logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(args.input_dir, dir_name))
+        process_directory(args.input_dir, dir_name, args)
+        
+    else:
         logging.info("Processing in recursive mode (processing each subdirectory)")
         
         if args.gcp:
@@ -204,17 +212,7 @@ def main():
                         subdir_name = mapping[subdir_name]
                         logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(subdir_path, subdir_name))
                     process_directory(subdir_path, subdir_name, args)
-    else:
-        logging.info("Processing in non-recursive mode (concatenating files in input directory)")
-        
-        # Extract directory name for output file
-        dir_name = os.path.basename(args.input_dir.rstrip('/').split('/')[-1]) if args.gcp else \
-                   os.path.basename(os.path.normpath(args.input_dir))
-            
-        if args.map_file is not None and dir_name in mapping:
-            dir_name = mapping[dir_name]
-            logging.debug("Renamed subdirectory concatenated file from {} to {} using mapping file".format(args.input_dir, dir_name))
-        process_directory(args.input_dir, dir_name, args)
+     
 
     logging.info("Concatenation completed successfully")
 
