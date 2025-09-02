@@ -141,9 +141,25 @@ NOTE: The WDL library will fail to parse dependencies if it cannot link I/O betw
 Two inputs required:
  - Local Git repo (PHB) directory
  - `task_export_taxon_table.wdl` within the repo
-MiniWDL is a required package
+ - MiniWDL is a required package
 
 #### usage
 ```bash
 $ python update_taxon_tables_io.py -r <local_PHB_repo> -i <task_broad_terra_tools.wdl>
+```
+
+
+### update_theiaviral_dbs.py
+
+TheiaViral uses CheckV for assembly QC and Skani for dynamic reference genome selection. This script downloads the CheckV database and builds a Skani viral database. It builds the Skani genome database from the latest non-RefSeq viral nucleotide data, removes segmented accessions initially, adds complete RefSeq segmented genome assembly accessions, and one complete SARS-CoV-2 genome for each pangolin lineage. A ".tar" file is compiled for the Skani database without compression to be compatible with WDL 1.0 file-only input and because Skani's sketched databases are already compressed. This script will upload a date tagged Skani and CheckV databases. Following upload, an update will require updating Skani and CheckV database references to the new upload date version in TheiaViral scripts.
+
+
+#### requirements
+- ncbi-datasets
+- skani
+- gsutils
+
+#### usage
+```bash
+$ python update_theiaviral_dbs.py -o <OUT_DIR>
 ```
