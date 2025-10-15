@@ -101,6 +101,8 @@ def id_clade_mrca(
 
 def write_clade_muts(clade2muts, out_file):
     """Extract and write the mutations for each clade to a TSV file."""
+    if len(clade2muts.keys()) < 2:
+        raise AttributeError('No clade-defining mutations could be extracted')
     with open(out_file, "w") as f:
         f.write("clade\tgene\tsite\talt\n")
         for clade, mut_dict in clade2muts.items():
