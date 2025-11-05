@@ -509,7 +509,7 @@ def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
     logger.info("Compressing SkaniDB into tarchive")
     skani_tar = compress_tarchive(skani_base)
 
-    return skani_tar, skani_base
+    return skani_tar, skani_base, fna_dir
 
 
 def main():
@@ -584,7 +584,7 @@ def main():
             with open(sars_accs_path, "r") as sars_in:
                 out.write(sars_in.read())
 
-        skani_tar, skani_base = skani_db_mngr(
+        skani_tar, skani_base, fna_dir = skani_db_mngr(
             all_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
         )
 
@@ -595,9 +595,23 @@ def main():
             if gs_exit:
                 logger.error("Failed to push SKANI database to Google Storage")
                 logger.error(
-                    f"Push manually via: `gsutil -m cp -r {skani_dir} {gsbucket_url}skani/{skani_base}`"
+                    f"Push manually via: `gsutil -m cp {skani_tar} {gsbucket_url}skani/{skani_base}.tar`"
                 )
                 raise Exception("Failed to push SKANI database to Google Storage")
+
+        # upload the genome database
+        if not args.upload_skip:
+            logger.info("Pushing viral genome FASTAs to Google Storage")
+            cur_date = datetime.now().strftime("%Y%m%d")
+            gs_exit = push_to_gs_bucket(
+                f"{gsbucket_url}skani/viral_fna_{cur_date}/", fna_dir
+            )
+            if gs_exit:
+                logger.error("Failed to push viral genome FASTAs to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil -m cp -r {fna_dir} {gsbucket_url}skani/viral_fna_{cur_date}/`"
+                )
+                raise Exception("Failed to push viral genome FASTAs to Google Storage")
 
     if not args.checkv_skip:
         # download the CheckV database
