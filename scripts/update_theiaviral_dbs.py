@@ -186,15 +186,27 @@ def pull_datasets_genomes(out_dir, fa_dir):
         acc_fa = prefix_dir + acc + "/" + os.listdir(acc_dir)[0]
         shutil.copy(acc_fa, f"{fa_dir}{acc}.fna")
 
+    acc2taxon = {}
+    data_json_path = f"{out_dir}/ncbi_dataset/data/assembly_data_report.jsonl"
+    with open(data_json_path, "r") as json_in:
+        for line in json_in:
+            data = json.loads(line)
+            acc2taxon[data["currentAccession"]] = data["organism"]["organismName"]
 
-def unzip_datasets(out_dir, datasets_zip, rm=True):
+    return acc2taxon
+
+
+def unzip_datasets(out_dir, datasets_zip, rm=True, virus=True):
     """Extracts genomes from datasets download"""
     if not os.path.isdir(out_dir + "ncbi_dataset/"):
         with zipfile.ZipFile(datasets_zip, "r") as zip_ref:
             zip_ref.extractall(out_dir)
         if rm:
             os.remove(datasets_zip)
-    return f"{out_dir}ncbi_dataset/data/genomic.fna"
+    if virus:
+        return f"{out_dir}ncbi_dataset/data/genomic.fna", f"{out_dir}ncbi_dataset/data/data_report.jsonl"
+    else:
+        return f"{out_dir}ncbi_dataset/data/", f"{out_dir}ncbi_dataset/data/assembly_data_report.jsonl"
 
 
 def chunk_datasets(accs_path, out_dir, chunk_size=250000):
@@ -216,17 +228,23 @@ def chunk_datasets(accs_path, out_dir, chunk_size=250000):
     full_genome = out_dir + "full_genome.fna"
     if os.path.isfile(full_genome):
         os.path.remove(full_genome)
+    acc2taxon = {}
     for chunk in chunked_files:
         logger.info(f"Running chunk: {chunk}")
         datasets_zip = download_viral_genomes(chunk, out_dir)
-        genome_file = unzip_datasets(out_dir, datasets_zip)
+        genome_file, data_json_path = unzip_datasets(out_dir, datasets_zip, virus = True)
         with open(genome_file, "r") as infile:
             with open(full_genome, "a") as outfile:
                 for line in infile:
                     outfile.write(line)
+        with open(data_json_path, "r") as json_in:
+            for line in json_in:
+                data = json.loads(line)
+                acc2taxon[data["accession"]] = data["virus"]["organismName"]
+
         shutil.rmtree(out_dir + "ncbi_dataset/")
 
-    return full_genome
+    return full_genome, acc2taxon
 
 
 def dict2fa(fasta_dict, description=True):
@@ -420,7 +438,8 @@ def compile_complete_segments(segmented_accs, fa_dir, out_dir):
             zip_ref.extractall(f"{out_dir}segmented/")
 
     # copy the FASTA files to the output directory
-    pull_datasets_genomes(seg_dir, fa_dir)
+    acc2taxon = pull_datasets_genomes(seg_dir, fa_dir)
+    return acc2taxon
 
 
 def output_list_fastas(fna_dir, out_path):
@@ -428,7 +447,7 @@ def output_list_fastas(fna_dir, out_path):
     with open(out_path, "w") as out:
         for fna in os.listdir(fna_dir):
             if fna.endswith(".fna"):
-                out.write(format_path(fna_dir + fna) + "\n")
+                out.write(fna + "\n")
 
 
 def build_skani_db(fa_list, db_dir, threads=8):
@@ -485,10 +504,12 @@ def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
         os.mkdir(fna_dir)
 
     # downloading the viral genomes
-    viral_fna = chunk_datasets(accs_path, out_dir, chunk_size=250000)
+    viral_fna, viral_acc2taxon = chunk_datasets(accs_path, out_dir, chunk_size=250000)
     if segmented_accs:
         logger.info("Downloading RefSeq viral genomes")
-        compile_complete_segments(segmented_accs, fna_dir, out_dir)
+        refseq_acc2taxon = compile_complete_segments(segmented_accs, fna_dir, out_dir)
+    
+    acc2taxon = {**viral_acc2taxon, **refseq_acc2taxon} if segmented_accs else viral_acc2taxon
 
     logger.info("Extracting NCBI viral genomes from multifasta")
     multifas2fas(viral_fna, fna_dir)
@@ -502,14 +523,23 @@ def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
     # can't exist prior to building db
     if os.path.isdir(skani_dir):
         shutil.rmtree(skani_dir)
+    cwd = os.getcwd()
+    os.chdir(fna_dir)
     build_skani_db(fa_list, skani_dir, threads=8)
+    os.chdir(cwd)
     skani_base = os.path.basename(skani_dir[:-1])
 
     os.chdir(out_dir)
     logger.info("Compressing SkaniDB into tarchive")
     skani_tar = compress_tarchive(skani_base)
 
-    return skani_tar, skani_base, fna_dir
+    acc2taxon_path = f"{out_dir}accession2taxon.tsv"
+    with open(acc2taxon_path, "w") as out:
+        out.write("#accession\ttaxon\n")
+        for acc in sorted(acc2taxon.keys()):
+            out.write(f"{acc}\t{acc2taxon[acc]}\n")
+
+    return skani_tar, skani_base, fna_dir, acc2taxon_path
 
 
 def main():
@@ -584,7 +614,7 @@ def main():
             with open(sars_accs_path, "r") as sars_in:
                 out.write(sars_in.read())
 
-        skani_tar, skani_base, fna_dir = skani_db_mngr(
+        skani_tar, skani_base, fna_dir, acc2taxon_path = skani_db_mngr(
             all_accs_path, out_dir, "skani_db", segmented_accs=segmented_accs
         )
 
@@ -612,6 +642,17 @@ def main():
                     f"Push manually via: `gsutil -m cp -r {fna_dir} {gsbucket_url}skani/viral_fna_{cur_date}/`"
                 )
                 raise Exception("Failed to push viral genome FASTAs to Google Storage")
+            gs_exit = push_to_gs_bucket(
+                f"{gsbucket_url}skani/viral_accession2taxon_{cur_date}.tsv", acc2taxon_path
+            )
+            if gs_exit:
+                logger.error("Failed to push viral accession to taxon mapping to Google Storage")
+                logger.error(
+                    f"Push manually via: `gsutil cp {acc2taxon_path} {gsbucket_url}skani/viral_accession2taxon_{cur_date}.tsv`"
+                )
+                raise Exception("Failed to push accession to taxon mapping to Google Storage")
+
+
 
     if not args.checkv_skip:
         # download the CheckV database
