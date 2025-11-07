@@ -643,12 +643,12 @@ def main():
                 )
                 raise Exception("Failed to push viral genome FASTAs to Google Storage")
             gs_exit = push_to_gs_bucket(
-                f"{gsbucket_url}skani/viral_accession2taxon_{cur_date}.tsv", acc2taxon_path
+                f"{gsbucket_url}skani/viral_fna_{cur_date}/viral_accession2taxon_{cur_date}.tsv", acc2taxon_path
             )
             if gs_exit:
                 logger.error("Failed to push viral accession to taxon mapping to Google Storage")
                 logger.error(
-                    f"Push manually via: `gsutil cp {acc2taxon_path} {gsbucket_url}skani/viral_accession2taxon_{cur_date}.tsv`"
+                    f"Push manually via: `gsutil cp {acc2taxon_path} {gsbucket_url}skani/viral_fna_{cur_date}/viral_accession2taxon_{cur_date}.tsv`"
                 )
                 raise Exception("Failed to push accession to taxon mapping to Google Storage")
 
