@@ -621,7 +621,7 @@ def main():
         # not worth compressing because skani is already compressing
         logger.info("Pushing SkaniDB to Google Storage")
         if not args.upload_skip:
-            gs_exit = push_to_gs_bucket(gsbucket_url + skani_base + ".tar", skani_tar)
+            gs_exit = push_to_gs_bucket(f'{gsbucket_url}skani/{skani_base}.tar', skani_tar)
             if gs_exit:
                 logger.error("Failed to push SKANI database to Google Storage")
                 logger.error(
