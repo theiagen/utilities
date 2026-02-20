@@ -113,6 +113,22 @@ def compress_tarchive(base_path, compression="tar", ext=".tar"):
     return base_path + ext
 
 
+def upload_mngr(path2upload, upload_path, gs_bucket, upload=False):
+    """Manage pushing to GS bucket"""
+    if upload:
+        gs_exit = push_to_gs_bucket(
+            f"{gs_bucket}{upload_path}", path2upload
+        )
+        if gs_exit:
+            logger.error("Failed to push Kraken2 database to Google Storage")
+            logger.error(
+                f"Push manually via: `gsutil -m cp -r {path2upload} {gs_bucket}{upload_path}`"
+            )
+            raise Exception("Failed to push Kraken2 database to Google Storage")
+    else:
+        logger.info(f"Upload Kraken2 DB to Google Storage with: `gsutil -m cp -r {path2upload} {gs_bucket}{upload_path}`")
+
+
 def download_viral_genomes(viral_accs_path, out_dir):
     """Calls NCBI datasets to download viral genomes"""
     precd_dir = os.getcwd()
@@ -542,33 +558,165 @@ def skani_db_mngr(accs_path, out_dir, db_base, segmented_accs=None):
     return skani_tar, skani_base, fna_dir, acc2taxon_path
 
 
-def main():
-    # hard-coded URLs
-    nucleotide_viral_url = "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz"
-    gsbucket_url = "gs://theiagen-public-resources-rp/reference_data/databases/"
-    pangolin_json_url = "https://github.com/cov-lineages/lineages-website/raw/refs/heads/master/_data/lineage_data.full.json"
-    sars_accs_per_lineage = 1
+def prep_human_genome(human_genome_url, human_out_dir):
+    """Download the human genome and prepare it for Kraken2"""
+    human_genome_path = human_out_dir + os.path.basename(human_genome_url)
+    download_file(human_genome_url, human_genome_path)
+    with gzip.open(human_genome_path, "rt") as human_in:
+        human_out_path = re.sub(r".gz$", "", human_genome_path)
+        with open(human_out_path, "w") as human_out:
+            for line in human_in:
+                human_out.write(line)
+    os.remove(human_genome_path)
+    return human_out_path
 
+
+
+def prep_kraken2_library(db_dir, human_genome_path, threads=4):
+    """Download the Kraken2 library for RefSeq viruses"""
+    download_cmd = [
+        "k2",
+        "download-library",
+        "--library",
+        "viral",
+        "--assembly-source",
+        "refseq",
+        "--threads",
+        str(threads),
+        "--db",
+        db_dir
+    ]
+    download_code = subprocess.call(download_cmd)
+    add_cmd = [
+        "k2",
+        "add-to-library",
+        "--db",
+        db_dir,
+        "--file",
+        human_genome_path,
+        "--threads",
+        str(threads)
+    ]
+    add_code = subprocess.call(add_cmd)
+    taxonomy_cmd = [
+        "k2",
+        "download-taxonomy",
+        "--db",
+        db_dir
+    ]
+    taxonomy_code = subprocess.call(taxonomy_cmd)
+
+
+def build_kraken2_db(db_dir, threads=8):
+    """Build the Kraken2 database"""
+    build_cmd = [
+        "k2",
+        "build",
+        "--db",
+        db_dir,
+        "--threads",
+        str(threads),
+    ]
+    build_code = subprocess.call(build_cmd)
+
+
+def build_bracken_db(db_dir, kmer_lens = [50, 75, 100, 150, 200, 250, 300], threads=8):
+    """Build the Bracken database from the Kraken2 database"""
+    for kmer_len in kmer_lens:
+        logger.info(f"Building Bracken database for kmer length: {kmer_len}")
+        build_cmd = [
+            "bracken-build",
+            "-d",
+            db_dir,
+            "-l",
+            str(kmer_len),
+            "-t",
+            str(threads),
+        ]
+        build_code = subprocess.call(build_cmd)
+
+
+def clean_kraken2_dir(db_path, dirty_files):
+    """Clean the Kraken2 directory"""
+    clean_cmd = ["k2", "clean", "--db", db_path]
+    clean_code = subprocess.call(clean_cmd)
+    for file_ in dirty_files:
+        if os.path.isfile(file_):
+            os.remove(file_)
+        elif os.path.isdir(file_):
+            shutil.rmtree(file_)
+
+    
+def main():
     usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
-    parser.add_argument("-o", "--output_dir", help="Output directory")
     parser.add_argument(
-        "-s", "--skani_skip", help="Skip SKANI database", action="store_true"
+        "-s", "--skani_skip", help="Skip SKANI database build", action="store_true"
     )
     parser.add_argument(
-        "-c", "--checkv_skip", help="Skip CheckV database", action="store_true"
+        "-c", "--checkv_skip", help="Skip CheckV database download", action="store_true"
+    )
+    parser.add_argument(
+        "-k", "--kraken_skip", help="Skip kraken2 database build", action="store_true"
+    )
+    parser.add_argument(
+        "-a",
+        "--sars_accs_per_lineage",
+        type=int,
+        default=1,
+        help="Number of SARS-CoV-2 accessions per Pangolin lineage (DEFAULT: 1)",
     )
     parser.add_argument(
         "-u",
-        "--upload_skip",
-        help="Skip uploading to Google Storage",
+        "--upload",
+        help="Upload to Google Storage",
         action="store_true",
     )
     parser.add_argument(
-        "-r",
-        "--ram",
+        "-t",
+        "--threads",
         type=int,
-        default=16,
+        default=os.cpu_count() * 2,
+        help=f"Number of threads to use (DEFAULT: {os.cpu_count() * 2})",
+    )
+    parser.add_argument("-o", "--output_dir", help="Output directory")
+
+
+    url_parser = parser.add_argument_group()
+    url_parser.add_argument(
+        "-b",
+        "--gsbucket_url",
+        default="gs://theiagen-public-resources-rp/reference_data/databases/",
+        help="Google Storage bucket URL (DEFAULT: gs://theiagen-public-resources-rp/reference_data/databases/)",
+        type=str
+    )
+    url_parser.add_argument(
+        "-p",
+        "--pangolin_json_url",
+        default="https://github.com/cov-lineages/lineages-website/raw/refs/heads/master/_data/lineage_data.full.json",
+        help="Pangolin JSON URL (DEFAULT: https://github.com/cov-lineages/lineages-website/raw/refs/heads/master/_data/lineage_data.full.json)",
+        type=str
+    )
+    url_parser.add_argument(
+        "-v",
+        "--viral_metadata_url",
+        default="https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz",
+        help="Viral metadata URL (DEFAULT: https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/AllNuclMetadata/AllNuclMetadata.csv.gz)",
+        type=str
+    )
+    url_parser.add_argument(
+        "-r",
+        "--viral_refseq_url",
+        default="https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz",
+        help="Viral RefSeq URL (DEFAULT: https://ftp.ncbi.nlm.nih.gov/refseq/release/viral/viral.1.1.genomic.fna.gz)",
+        type=str
+    )
+    url_parser.add_argument(
+        "-g",
+        "--human_genome_url",
+        default="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_genomic.fna.gz",
+        help="Human genome URL (DEFAULT: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_genomic.fna.gz)",
+        type=str
     )
     args = parser.parse_args()
 
@@ -584,7 +732,7 @@ def main():
     if not args.skani_skip:
         logger.info("Downloading latest viral nucleotide metadata")
         viral_metadata_path = out_dir + "AllNuclMetadata.csv.gz"
-        download_file(nucleotide_viral_url, viral_metadata_path)
+        download_file(args.viral_metadata_url, viral_metadata_path)
 
         # parse the metadata and extract the complete non-SARS viral accessions
         logger.info("Parsing viral metadata for non-SARS-CoV-2 accessions")
@@ -600,12 +748,12 @@ def main():
 
         pango_json_path = sars_dir + "pangolin_lineages.json"
         if not os.path.isfile(pango_json_path):
-            download_file(pangolin_json_url, pango_json_path)
+            download_file(args.pangolin_json_url, pango_json_path)
         pango_lineages = parse_pangolin_json(pango_json_path)
         logger.info(
-            f"Finding up to {sars_accs_per_lineage * len(pango_lineages)} SARS-CoV-2 accessions"
+            f"Finding up to {args.sars_accs_per_lineage * len(pango_lineages)} SARS-CoV-2 accessions"
         )
-        sars_accs_path = lineage2accs(pango_lineages, sars_dir, sars_accs_per_lineage)
+        sars_accs_path = lineage2accs(pango_lineages, sars_dir, args.sars_accs_per_lineage)
 
         all_accs_path = out_dir + "all_accessions.txt"
         with open(all_accs_path, "w") as out:
@@ -620,38 +768,11 @@ def main():
 
         # not worth compressing because skani is already compressing
         logger.info("Pushing SkaniDB to Google Storage")
-        if not args.upload_skip:
-            gs_exit = push_to_gs_bucket(f'{gsbucket_url}skani/{skani_base}.tar', skani_tar)
-            if gs_exit:
-                logger.error("Failed to push SKANI database to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil -m cp {skani_tar} {gsbucket_url}skani/{skani_base}.tar`"
-                )
-                raise Exception("Failed to push SKANI database to Google Storage")
-
+        upload_mngr(skani_tar, f"skani/{skani_base}.tar", args.gsbucket_url, upload=args.upload)
         # upload the genome database
-        if not args.upload_skip:
-            logger.info("Pushing viral genome FASTAs to Google Storage")
-            cur_date = datetime.now().strftime("%Y%m%d")
-            gs_exit = push_to_gs_bucket(
-                f"{gsbucket_url}skani/viral_fna_{cur_date}/", fna_dir
-            )
-            if gs_exit:
-                logger.error("Failed to push viral genome FASTAs to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil -m cp -r {fna_dir} {gsbucket_url}skani/viral_fna_{cur_date}/`"
-                )
-                raise Exception("Failed to push viral genome FASTAs to Google Storage")
-            gs_exit = push_to_gs_bucket(
-                f"{gsbucket_url}skani/viral_fna_{cur_date}/viral_accession2taxon_{cur_date}.tsv", acc2taxon_path
-            )
-            if gs_exit:
-                logger.error("Failed to push viral accession to taxon mapping to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil cp {acc2taxon_path} {gsbucket_url}skani/viral_fna_{cur_date}/viral_accession2taxon_{cur_date}.tsv`"
-                )
-                raise Exception("Failed to push accession to taxon mapping to Google Storage")
-
+        cur_date = datetime.now().strftime("%Y%m%d")
+        upload_mngr(fna_dir, f"skani/viral_fna_{cur_date}/", args.gsbucket_url, upload=args.upload)
+        upload_mngr(acc2taxon_path, f"skani/viral_fna_{cur_date}/viral_accession2taxon_{cur_date}.tsv", args.gsbucket_url, upload=args.upload)
 
 
     if not args.checkv_skip:
@@ -662,19 +783,31 @@ def main():
         logger.info("Compressing CheckV DB into tarchive")
         checkv_tar = compress_tarchive(checkv_base, compression="gztar", ext=".tar.gz")
         logger.info("Pushing CheckV DB to Google Storage")
-        if not args.upload_skip:
-            gs_exit = push_to_gs_bucket(
-                f"{gsbucket_url}checkv/{checkv_base}.tar.gz", checkv_tar
-            )
-            # check if the push was successful
-            if gs_exit:
-                logger.error("Failed to push CheckV database to Google Storage")
-                logger.error(
-                    f"Push manually via: `gsutil -m cp -r {checkv_tar} {gsbucket_url}{checkv_base}.tar.gz`"
-                )
-                raise Exception("Failed to push CheckV database to Google Storage")
+        upload_mngr(checkv_tar, f"checkv/{checkv_base}.tar.gz", args.gsbucket_url, upload=args.upload)
 
-    if not args.upload_skip:
+
+    if not args.kraken_skip:
+        logger.info("Building Kraken2 database")
+        kraken_dir = mk_output_dir(out_dir, "k2_viral_refseq_GRCh38")
+        logger.debug("Downloading human genome for Kraken2 database")
+        human_genome_path = prep_human_genome(args.human_genome_url, kraken_dir)
+        if args.threads > 4:
+            download_threads = 4
+        else:
+            download_threads = args.threads
+        logger.info("Downloading Kraken2 viral library and adding human genome to library")
+        prep_kraken2_library(kraken_dir, human_genome_path, threads=download_threads)
+        logger.info("Building Kraken2 database")
+        build_kraken2_db(kraken_dir, threads=args.threads)
+        logger.info("Building Bracken k-mer libraries")
+        build_bracken_db(kraken_dir, threads=args.threads)
+        logger.info("Cleaning Kraken2 database directory")
+        clean_kraken2_dir(kraken_dir, [human_genome_path])
+        k2db_tar = compress_tarchive(kraken_dir, compression="gztar", ext=".tar.gz")
+        upload_mngr(k2db_tar, f"kraken2/k2_viral_refseq_GRCh38.tar.gz", args.gsbucket_url, upload=args.upload)
+
+
+    if args.upload:
         logger.info("Cleaning up")
         rm_files(out_dir)
 
