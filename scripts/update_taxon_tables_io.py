@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 def set_wdl_paths():
     """Set dependency paths relative to remote repo"""
     source = 'tasks/utilities/data_export/task_export_taxon_table.wdl'
-    dependencies = ['workflows/theiaprok/wf_theiaprok_fasta.wdl',
+    dependencies = ['workflows/theiaviral/wf_theiaviral_panel.wdl',
+                    'workflows/theiaprok/wf_theiaprok_fasta.wdl',
                     'workflows/theiaprok/wf_theiaprok_illumina_pe.wdl',
                     'workflows/theiaprok/wf_theiaprok_illumina_se.wdl',
                     'workflows/theiaprok/wf_theiaprok_ont.wdl']
