@@ -640,6 +640,7 @@ def clean_kraken2_dir(db_path, dirty_files):
     """Clean the Kraken2 directory"""
     clean_cmd = ["k2", "clean", "--db", db_path]
     clean_code = subprocess.call(clean_cmd)
+    dirty_files.extend([x for x in os.listdir(db_path) if x.endswith('kraken')])
     for file_ in dirty_files:
         if os.path.isfile(file_):
             os.remove(file_)
@@ -648,6 +649,9 @@ def clean_kraken2_dir(db_path, dirty_files):
 
     
 def main():
+    max_threads = os.cpu_count() * 2
+    if max_threads > 16:
+        max_threads = 16
     usage = "Download complete RefSeq viral genomes and build SKANI database\n"
     parser = argparse.ArgumentParser(description=usage)
     parser.add_argument(
@@ -676,8 +680,8 @@ def main():
         "-t",
         "--threads",
         type=int,
-        default=os.cpu_count() * 2,
-        help=f"Number of threads to use (DEFAULT: {os.cpu_count() * 2})",
+        default=max_threads,
+        help=f"Number of threads to use (DEFAULT: max_threads)",
     )
     parser.add_argument("-o", "--output_dir", help="Output directory")
 
@@ -802,7 +806,7 @@ def main():
         logger.info("Building Bracken k-mer libraries")
         build_bracken_db(kraken_dir, threads=args.threads)
         logger.info("Cleaning Kraken2 database directory")
-        clean_kraken2_dir(kraken_dir, [human_genome_path])
+        clean_kraken2_dir(kraken_dir, [human_genome_path, 'estimated_capacity'])
         k2db_tar = compress_tarchive(kraken_dir, compression="gztar", ext=".tar.gz")
         upload_mngr(k2db_tar, f"kraken2/k2_viral_refseq_GRCh38.tar.gz", args.gsbucket_url, upload=args.upload)
 
