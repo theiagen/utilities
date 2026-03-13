@@ -149,7 +149,7 @@ def download_viral_genomes(viral_accs_path, out_dir):
                 viral_accs_path,
             ]
             datasets_exit = subprocess.call(datasets_cmd)
-        if attempts == 3:
+        if attempts == 3 and datasets_exit != 0:
             logger.error(
                 "Failed to download genomes from NCBI datasets after 3 attempts"
             )
@@ -243,7 +243,7 @@ def chunk_datasets(accs_path, out_dir, chunk_size=250000):
     # download the genomes for each chunk and append to a complete genome file
     full_genome = out_dir + "full_genome.fna"
     if os.path.isfile(full_genome):
-        os.path.remove(full_genome)
+        os.remove(full_genome)
     acc2taxon = {}
     for chunk in chunked_files:
         logger.info(f"Running chunk: {chunk}")
