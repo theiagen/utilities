@@ -344,7 +344,7 @@ def output_changes(wdl2out_hash,
                 file_obj.write(f'\t!! Add to {mapping_name} mapping in {namespace}.{task_name} call:\n')
                 for missing_var in sorted(missing_mappings):
                     missing_expr = outputs2expr[missing_var]
-                    file_obj.write(f'{missing_var}: {missing_expr},\n')
+                    file_obj.write(f'\"{missing_var}\": {missing_expr},\n')
         # Write removals as simply their variable names
         if extra_inputs:
             file_obj.write(f'\n\t!! Remove from {namespace}.{task_name} call:\n')
